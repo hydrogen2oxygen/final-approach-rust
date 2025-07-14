@@ -8,12 +8,13 @@ import { InfoDialogComponent } from './components/info-dialog/info-dialog.compon
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule } from '@angular/material/dialog';
+import { MatIconModule } from '@angular/material/icon';
 
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, MatButtonModule, MatDialogModule, InfoDialogComponent],
+  imports: [CommonModule, MatButtonModule, MatDialogModule, InfoDialogComponent, MatIconModule],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
 })

@@ -18,3 +18,10 @@ Run
 - all in one page, all components are dialogs
 - fake sftp and webserver during developing mode
 - ...
+
+### Notes for me
+````shell
+ng generate component info-dialog
+````
+
+https://jossef.github.io/material-design-icons-iconfont/

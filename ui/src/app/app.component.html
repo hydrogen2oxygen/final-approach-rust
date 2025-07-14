@@ -1,2 +1,9 @@
 <div class="map-container" id="map"></div>
-<button style="position: fixed; left: 1rem; top: 1rem" mat-raised-button color="primary" (click)="openDialog()">Zeige Dialog</button>
+<div class="sidebar" style="position: fixed; left: 1rem; top: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+    <button mat-mini-fab aria-label="Example icon button with a home icon" (click)="openDialog()" title="Info">
+        <mat-icon>info_outline</mat-icon>
+    </button>
+    <button mat-mini-fab aria-label="Example icon button with a home icon">
+        <mat-icon>home</mat-icon>
+    </button>
+</div>
