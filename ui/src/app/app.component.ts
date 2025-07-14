@@ -14,11 +14,10 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ToastrModule, ToastrService } from 'ngx-toastr';
 
 @Component({
-  selector: 'app-root',
-  standalone: true,
-  imports: [CommonModule, MatButtonModule, MatDialogModule, InfoDialogComponent, MatIconModule, BrowserAnimationsModule, ToastrModule],
-  templateUrl: './app.component.html',
-  styleUrls: ['./app.component.scss']
+    selector: 'app-root',
+    imports: [CommonModule, MatButtonModule, MatDialogModule, InfoDialogComponent, MatIconModule, BrowserAnimationsModule, ToastrModule],
+    templateUrl: './app.component.html',
+    styleUrls: ['./app.component.scss']
 })
 export class AppComponent implements OnInit {
 

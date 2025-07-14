@@ -4,9 +4,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { CommonModule } from '@angular/common';
 
 @Component({
-  selector: 'app-info-dialog',
-  standalone: true,
-  imports: [CommonModule, MatDialogModule, MatButtonModule],
-  templateUrl: './info-dialog.component.html',
+    selector: 'app-info-dialog',
+    imports: [CommonModule, MatDialogModule, MatButtonModule],
+    templateUrl: './info-dialog.component.html'
 })
 export class InfoDialogComponent {}
