@@ -9,21 +9,28 @@ import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-
+import { MapService } from './services/map.service';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { ToastrModule, ToastrService } from 'ngx-toastr';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, MatButtonModule, MatDialogModule, InfoDialogComponent, MatIconModule],
+  imports: [CommonModule, MatButtonModule, MatDialogModule, InfoDialogComponent, MatIconModule, BrowserAnimationsModule, ToastrModule],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
 })
 export class AppComponent implements OnInit {
 
-  constructor(private dialog: MatDialog) {}
+  map: Map | undefined;
+  constructor(
+    private dialog: MatDialog,
+    private mapService: MapService,
+    private toastr: ToastrService
+  ) {}
 
   ngOnInit(): void {
-    new Map({
+    this.map = new Map({
       target: 'map',
       controls: [],
       layers: [
@@ -39,11 +46,29 @@ export class AppComponent implements OnInit {
         projection: 'EPSG:3857'
       })
     });
+    this.loadHome()
   }
 
   openDialog(): void {
     this.dialog.open(InfoDialogComponent, {
       width: '400px'
+    });
+  }
+
+  saveHome(): void {
+    this.mapService.saveHome(this.map).subscribe(() => {
+      this.toastr.success('Home view saved successfully!', 'Success');
+      console.log('Home view saved successfully!');
+    });
+  }
+
+  loadHome(): void {
+    this.mapService.loadHome().subscribe(home => {
+      console.log('Loaded home view:', home);
+      if (home && this.map) {
+        this.map.getView().setCenter(home.coordinates);
+        this.map.getView().setZoom(home.zoom);
+      }
     });
   }
 }
