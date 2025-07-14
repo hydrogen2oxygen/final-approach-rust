@@ -1,5 +1,14 @@
-<h2 mat-dialog-title>Info</h2>
-<mat-dialog-content>Info box providing more info</mat-dialog-content>
+<h2 mat-dialog-title>{{appName}}</h2>
+<mat-dialog-content>
+    <p>Version {{version}}</p>
+
+    <div *ngIf="!home">
+        <h2>TODO List</h2>
+        <ul>
+            <li *ngIf="!home">Set your home coordinates, click on the <mat-icon>home</mat-icon> "home" button!</li>
+        </ul>
+    </div>
+</mat-dialog-content>
 <mat-dialog-actions>
     <button mat-button mat-dialog-close>Close</button>
 </mat-dialog-actions>
