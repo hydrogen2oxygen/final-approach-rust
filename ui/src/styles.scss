@@ -53,10 +53,14 @@
 }
 
 
-
 html, body { height: 100%; }
 body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
-.map-container {
-  width: 100%;
-  height: 100vh;
+:host {               /* the root element of your component */
+  display:block;
+  height:100vh;       /* or whatever you need */
 }
+.map-container {
+  width:100%;
+  height:100%;
+}
+

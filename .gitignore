@@ -25,3 +25,4 @@ ui/dist
 ui/node_modules
 ui/.angular
 ui/.vscode
+/.idea/

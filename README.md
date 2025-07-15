@@ -23,5 +23,17 @@ Run
 ````shell
 ng generate component info-dialog
 ````
-
 https://jossef.github.io/material-design-icons-iconfont/
+
+Folder structure
+
+````
+-- finalApproach.exe
+-- data
+   -- settings.json
+   -- territories
+   -- mapdesign
+   -- public
+      -- index.html ... (ui)
+      -- data 
+````
