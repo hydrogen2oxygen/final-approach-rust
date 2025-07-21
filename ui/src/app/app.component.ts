@@ -12,6 +12,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MapService } from './services/map.service';
 import { ToastrService } from 'ngx-toastr';
 import { AppService } from './services/app.service';
+import { PingService } from './services/ping.service';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import {Fill, Stroke, Style, Text} from 'ol/style';
@@ -62,10 +63,14 @@ export class AppComponent implements OnInit {
     private dialog: MatDialog,
     private mapService: MapService,
     private appService: AppService,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private pingService: PingService
   ) {}
 
   ngOnInit(): void {
+    this.pingService.ping().subscribe(response => {
+      console.log('Ping response:', response);
+    });
     this.osmLayer = new TileLayer({
           source: new OSM({
             attributions: []
