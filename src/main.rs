@@ -1,43 +1,15 @@
-use actix_web::{get, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder, Error};
-use actix_web_actors::ws;
-use actix::prelude::*;
+mod websocket;
+
+use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use rust_embed::RustEmbed;
 use mime_guess::from_path;
 use std::env;
+use websocket::ws_index;
 
 #[derive(RustEmbed)]
 #[folder = "./ui/dist/ui/browser/"]
 struct Asset;
 
-struct MyWebSocket;
-
-impl Actor for MyWebSocket {
-    type Context = ws::WebsocketContext<Self>;
-}
-
-impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MyWebSocket {
-    fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
-        match msg {
-            Ok(ws::Message::Text(text)) => {
-                if text == "ping" {
-                    ctx.text("pong");
-                } else {
-                    ctx.text(text);
-                }
-            }
-            Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
-            Ok(ws::Message::Close(reason)) => {
-                ctx.close(reason);
-                ctx.stop();
-            }
-            _ => {}
-        }
-    }
-}
-
-async fn ws_index(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
-    ws::start(MyWebSocket {}, &req, stream)
-}
 
 #[get("/{filename:.*}")]
 async fn serve_file(path: web::Path<String>) -> impl Responder {
