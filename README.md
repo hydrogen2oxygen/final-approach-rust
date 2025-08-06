@@ -21,12 +21,12 @@ Run
 
 ### Notes for me
 ````shell
+cargo fetch
 ng generate component info-dialog
 ````
-https://jossef.github.io/material-design-icons-iconfont/
-
-#### Features from OL version 10
-https://openlayers.org/en/latest/examples/export-map.html
+- https://jossef.github.io/material-design-icons-iconfont/
+- https://material.angular.dev/components/dialog/examples
+- https://openlayers.org/en/latest/examples/export-map.html
 
 #### Folder structure
 

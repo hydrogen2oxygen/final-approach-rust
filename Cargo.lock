@@ -431,6 +431,8 @@ dependencies = [
  "actix-web",
  "mime_guess",
  "rust-embed",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

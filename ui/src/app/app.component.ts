@@ -22,6 +22,7 @@ import {GeoJSON, GPX, IGC, KML, TopoJSON, WKT} from 'ol/format';
 import {Feature} from 'ol';
 import {TerritoryMap} from './domains/MapDesign';
 import {Geometry} from 'ol/geom';
+import {DocumentationComponent} from './components/documentation/documentation.component';
 
 @Component({
     selector: 'app-root',
@@ -187,6 +188,16 @@ export class AppComponent implements OnInit {
         home: this.home
       }
     });
+  }
+
+  openDocumentation(): void {
+    this.dialog.open(DocumentationComponent, {
+      minWidth: '90%',
+      data: {
+        appName: this.appName,
+        version: this.version
+      }
+    })
   }
 
   saveHome(): void {
