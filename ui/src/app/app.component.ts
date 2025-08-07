@@ -18,7 +18,7 @@ import VectorSource from 'ol/source/Vector';
 import {Fill, Stroke, Style, Text} from 'ol/style';
 import {FeatureLike} from 'ol/Feature';
 import {FormControl} from '@angular/forms';
-import {DragAndDrop, Draw, Select} from 'ol/interaction';
+import {DragAndDrop, Draw, Modify, Select} from 'ol/interaction';
 import {GeoJSON, GPX, IGC, KML, TopoJSON, WKT} from 'ol/format';
 import {Feature} from 'ol';
 import {TerritoryMap} from './domains/MapDesign';
@@ -56,6 +56,8 @@ export class AppComponent implements OnInit {
   lastSavedTerritoryName: string = '';
   importedFeature: Feature | undefined = undefined;
   interaction: any = null;
+  interactionType: string | undefined
+  modifiedFeatures: boolean = false;
   appName = 'Final Approach Rust UI';
   version = '1.0.0';
 
@@ -68,6 +70,7 @@ export class AppComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+
     this.pingService.ping().subscribe(response => {
       console.log('Ping response:', response);
     });
@@ -99,7 +102,6 @@ export class AppComponent implements OnInit {
     this.map.addInteraction(this.dragAndDropInteraction);
     this.selectInteraction.on('select', e => {
       if (e.deselected) {
-        console.log("deselect")
         this.lastSelectedFeature = undefined;
         this.territoryCustomNumber.setValue(null);
         this.territoryCustomName.setValue(null);
@@ -124,9 +126,26 @@ export class AppComponent implements OnInit {
     this.appService.getAppInfo().subscribe(info => {
       this.appName = info.appName;
       this.version = info.version;
-      console.log('App Name:', this.appName);
     });
 
+    // Listen to key ESCAPE and remove interaction
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        this.removeInteraction();
+        this.modeSelected = '';
+        this.lastSelectedFeature = undefined;
+        this.territoryCustomNumber.setValue(null);
+        this.territoryCustomName.setValue(null);
+        this.note.setValue(null);
+      }
+    });
+
+    // Listen to click on map feature
+    this.map.on('click', (event) => {
+      const feature = this.map?.forEachFeatureAtPixel(event.pixel, (feature) => {
+        return feature;
+      });
+    });
   }
 
   public createStyle(fillColor:any = [0, 0, 0, 0.1], strokeColor:any = [255, 0, 0, 0.5], strokeWidth:number = 5, textFillColor:string = '#000', textStrokeColor:string = '#fff', textStrokeWidth:number = 3):Style {
@@ -210,7 +229,6 @@ export class AppComponent implements OnInit {
 
   loadHome(): void {
     this.mapService.loadHome().subscribe(home => {
-      console.log('Loaded home view:', home);
       this.home = home;
       if (home && this.map) {
         this.map.getView().setCenter(home.coordinates);
@@ -225,16 +243,59 @@ export class AppComponent implements OnInit {
     this.modeSelected = 'polygon';
   }
 
+  editFeature() {
+
+    if (this.interaction != null) {
+      this.removeInteraction();
+    }
+
+    this.interaction = new Modify({
+      source: this.source
+    });
+
+    let modify: Modify = this.interaction;
+
+    modify.on('modifyend', evt => {
+
+      let modifiedFeature = evt.features.getArray()[0];
+      this.territoryCustomNumber.setValue(modifiedFeature.get('territoryNumber'));
+      this.territoryCustomName.setValue(modifiedFeature.get('territoryName'));
+      this.note.setValue(modifiedFeature.get('note'));
+      this.lastSavedTerritoryName = this.territoryCustomNumber.value + ' ' + this.territoryCustomName.value;
+
+      /*FIXME this.map.territoryMapList.forEach(t => {
+        if (t.territoryNumber == this.territoryCustomNumber.value) {
+          let data = this.wktFormat.writeGeometry(<Geometry>modifiedFeature.getGeometry());
+          t.simpleFeatureData = data;
+          t.draft = true; // it remains a "draft" until you activate it
+          t.lastUpdate = new Date();
+          this.featureModified = true;
+        }
+      })*/
+
+    })
+
+    modify.on('change', evt => {
+      this.modifiedFeatures = true;
+    })
+
+    this.map?.addInteraction(this.interaction);
+    this.modeSelected = 'edit';
+    this.interactionType = 'EDIT'
+  }
+
   private addInteraction(type: string) {
     this.removeInteraction();
+    this.interactionType = 'DRAW';
     this.interaction = new Draw({
       type: type as any,
       source: this.source
     });
     let draw: Draw = this.interaction;
     draw.on('drawend', evt => {
-      console.log('draw ended!');
+      this.modifiedFeatures = true;
       this.lastSelectedFeature = evt.feature;
+      this.lastSelectedFeature.set('draft', true);
 
       let territoryMap = new TerritoryMap();
       territoryMap.draft = true;
@@ -271,8 +332,14 @@ export class AppComponent implements OnInit {
     this.modeSelected = 'navigate';
   }
 
-  private removeInteraction() {
+  removeInteraction() {
     this.map?.removeInteraction(this.interaction);
     this.interaction = null;
+    this.interactionType = undefined
+  }
+
+  saveModifications() {
+    this.modifiedFeatures = false;
+    this.toastr.success('Modifications saved successfully (simulated)!');
   }
 }

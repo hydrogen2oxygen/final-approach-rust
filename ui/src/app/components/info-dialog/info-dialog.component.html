@@ -1,4 +1,4 @@
-<h2 mat-dialog-title><a href="https://github.com/hydrogen2oxygen/final-approach-rust" target="github">{{appName}}</a></h2>
+<h2 mat-dialog-title>{{appName}}</h2>
 <mat-dialog-content>
     <p>Version {{version}}</p>
     <p>Press <b>F-11</b> key for <b>fullscreen</b>.</p>
@@ -11,5 +11,6 @@
     </div>
 </mat-dialog-content>
 <mat-dialog-actions>
+  <a style="position:absolute!important; left: 1rem!important; color:white" href="https://github.com/hydrogen2oxygen/final-approach-rust" target="github">{{appName}} on Github</a>
     <button mat-button mat-dialog-close>Close</button>
 </mat-dialog-actions>

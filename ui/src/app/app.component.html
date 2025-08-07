@@ -3,20 +3,27 @@
     <button class="icon-button icon-primary" (click)="openDialog()" title="Info">
         <mat-icon>info_outline</mat-icon>
     </button>
-    <button class="icon-button icon-success" (click)="saveHome()" title="Info">
+    <button class="icon-button icon-success" (click)="saveHome()" title="Set Home Coordinates">
         <mat-icon>home</mat-icon>
     </button>
 
 </div>
 
 <div  style="position: fixed; left: 5rem; top: 1rem; display: flex; flex-direction: row; gap: 0.5rem;">
-  <button class="icon-button icon-primary" (click)="drawPolygon()" title="Draw Polygon">
+  @if (interaction) {
+    <button class="icon-button icon-primary" (click)="removeInteraction()" title="Draw Polygon">
+      <mat-icon>stop_circle</mat-icon>
+    </button>
+  }
+  <button class="icon-button icon-primary" [class.activeMode]="interactionType == 'DRAW'" (click)="drawPolygon()" title="Draw Polygon">
     <mat-icon>polyline</mat-icon>
   </button>
-  <button class="icon-button icon-warning" title="Save">
+  <button class="icon-button icon-warning" [class.activeMode]="interactionType == 'EDIT'" (click)="editFeature()" title="Edit Polygon">
     <mat-icon>edit</mat-icon>
   </button>
-  <button class="icon-button icon-warning" title="Save">
-    <mat-icon>save</mat-icon>
-  </button>
+  @if (modifiedFeatures) {
+    <button class="icon-button icon-warning" (click)="saveModifications()" title="Save">
+      <mat-icon>save</mat-icon>
+    </button>
+  }
 </div>
