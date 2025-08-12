@@ -60,4 +60,8 @@ export class MapService {
     let data = JSON.stringify(mapDesign)
     return this.http.post<{status: string}>(`${environment.apiBaseUrl}/mapDesign`, data)
   }
+
+  deleteMapDesign(territoryNumber: string) {
+    return this.http.delete<{status: string}>(`${environment.apiBaseUrl}/mapDesign/${territoryNumber}`);
+  }
 }

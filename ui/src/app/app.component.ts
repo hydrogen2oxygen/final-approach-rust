@@ -73,6 +73,11 @@ export class AppComponent implements OnInit {
     this.pingService.ping().subscribe(response => {
       console.log('Ping response:', response);
     });
+    this.appService.getAppInfo().subscribe(info => {
+      this.appName = info.appName;
+      this.version = info.version;
+    });
+
     this.osmLayer = new TileLayer({
           source: new OSM({
             attributions: []
@@ -123,12 +128,7 @@ export class AppComponent implements OnInit {
     });
     this.loadHome()
     this.loadMapDesign()
-    this.appService.getAppInfo().subscribe(info => {
-      this.appName = info.appName;
-      this.version = info.version;
-    });
 
-    // Listen to key ESCAPE and remove interaction
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
         this.removeInteraction();
@@ -137,38 +137,21 @@ export class AppComponent implements OnInit {
         this.territoryCustomNumber.setValue(null);
         this.territoryCustomName.setValue(null);
         this.note.setValue(null);
-      }
-    });
-
-    // Listen to CTRL + S to save modifications
-    document.addEventListener('keydown', (event) => {
-      if (event.ctrlKey && event.key === 's') {
+      } else if (event.ctrlKey && event.key === 's') {
         event.preventDefault(); // Prevent the default save action
         this.saveModifications();
-      }
-    });
-
-    // Listen to CTRL + D to draw polygon
-    document.addEventListener('keydown', (event) => {
-      if (event.ctrlKey && event.key === 'd') {
+      } else if (event.ctrlKey && event.key === 'd') {
         event.preventDefault(); // Prevent the default action
         this.drawPolygon();
-      }
-    });
-
-    // Listen to CTRL + E to edit feature
-    document.addEventListener('keydown', (event) => {
-      if (event.ctrlKey && event.key === 'e') {
+      } else if (event.ctrlKey && event.key === 'e') {
         event.preventDefault(); // Prevent the default action
         this.editFeature();
-      }
-    });
-
-    // Listen to DELETE key to delete feature
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'Delete' && this.lastSelectedFeature) {
+      } else if (event.key === 'Delete' && this.lastSelectedFeature) {
         event.preventDefault(); // Prevent the default action
         this.deleteFeature();
+      } else if (event.ctrlKey && event.key === 'i') {
+        event.preventDefault(); // Prevent the default action
+        this.openDialog();
       }
     });
 
@@ -346,10 +329,13 @@ export class AppComponent implements OnInit {
     // list all modified features
     let i = 0;
     this.source.getFeatures().forEach(feature => {
-      if (feature.get('draft') === true) {
+
         console.log('Modified feature:', feature);
         feature.set('draft', false);
-        feature.set('territoryNumber', new Date().getTime() + i);
+        if (!feature.get('territoryNumber')) {
+          feature.set('territoryNumber', new Date().getTime() + i);
+        }
+
         feature.set('name', feature.get('territoryNumber'));
         i++;
         let mapDesign: TerritoryMap = {
@@ -375,33 +361,42 @@ export class AppComponent implements OnInit {
             this.toastr.error('Error saving feature:', error);
           }
         })
-      }
     });
   }
 
   deleteFeature() {
-    this.source.removeFeature(this.lastSelectedFeature)
-    this.lastSelectedFeature = undefined;
+
+    this.mapService.deleteMapDesign(this.lastSelectedFeature.get("territoryNumber")).subscribe({
+      next: (response) => {
+        this.toastr.success('Feature deleted successfully');
+        this.source.removeFeature(this.lastSelectedFeature)
+        this.lastSelectedFeature = undefined;
+      },
+      error: (error) => {
+        console.error('Error deleting feature:', error);
+        this.toastr.error('Error deleting feature: ' + error.message);
+      }
+    })
+
   }
 
   loadMapDesign() {
     this.mapService.loadMapDesign().subscribe({
       next: (mapDesigns: TerritoryMap[]) => {
         this.source.clear();
-        console.log(mapDesigns);
 
         mapDesigns.forEach(mapDesign => {
-          console.log(mapDesign.territoryNumber, mapDesign.territoryName, mapDesign.simpleFeatureData);
           if (mapDesign.simpleFeatureData) {
             let geometry = this.wktFormat.readGeometry(mapDesign.simpleFeatureData);
             let feature = new Feature({
               geometry: geometry,
               territoryNumber: mapDesign.territoryNumber,
-              territoryName: mapDesign.territoryName,
+              territoryName: mapDesign.territoryName || mapDesign.territoryNumber, // if empty, it will be set to territoryNumber
               note: mapDesign.note,
               draft: mapDesign.draft,
               imported: false // Set to true if the feature is imported
             });
+            feature.set('name', feature.get('territoryName'));
             this.source.addFeature(feature);
           }
         });

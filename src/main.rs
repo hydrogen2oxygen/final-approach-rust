@@ -2,7 +2,7 @@ mod websocket;
 
 use actix_cors::Cors;
 use actix_web::http::header;
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{delete, get, post, web, App, HttpResponse, HttpServer, Responder};
 use log::info;
 use mime_guess::from_path;
 use rust_embed::RustEmbed;
@@ -85,7 +85,6 @@ async fn save_map_design(body: String) -> impl Responder {
     HttpResponse::Ok().json(serde_json::json!({"status":"ok"}))
 }
 
-// load map design(s) from file and return as JSON array
 #[get("/api/mapDesign")]
 async fn load_map_design() -> impl Responder {
     let mut designs: Vec<Value> = Vec::new();
@@ -111,6 +110,20 @@ async fn load_map_design() -> impl Responder {
     HttpResponse::Ok().json(designs)
 }
 
+#[delete("/api/mapDesign/{territory_number}")]
+async fn delete_map_design(territory_number: web::Path<String>) -> impl Responder {
+    let path = format!("./data/mapDesigns/{}.json", territory_number);
+
+    if std::fs::remove_file(&path).is_ok() {
+        info!("Map design {} deleted", territory_number);
+        HttpResponse::Ok().json(serde_json::json!({"status": "ok"}))
+    } else {
+        info!("Map design {} not found", territory_number);
+        HttpResponse::NotFound().json(serde_json::json!({"status": "not found"}))
+    }
+}
+
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     // Init logger ASAP
@@ -135,6 +148,7 @@ async fn main() -> std::io::Result<()> {
             .service(post_data)
             .service(save_map_design)
             .service(load_map_design)
+            .service(delete_map_design)
             .route("/ws", web::get().to(ws_index))
             .service(serve_file)
     })
