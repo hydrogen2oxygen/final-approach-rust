@@ -1,13 +1,14 @@
 mod websocket;
 
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
-use rust_embed::RustEmbed;
-use mime_guess::from_path;
-use std::{env};
-use actix_web::http::header;
-use websocket::ws_index;
 use actix_cors::Cors;
+use actix_web::http::header;
+use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use log::info;
+use mime_guess::from_path;
+use rust_embed::RustEmbed;
+use serde_json::Value;
+use std::env;
+use websocket::ws_index;
 
 #[derive(RustEmbed)]
 #[folder = "./ui/dist/ui/browser/"]
@@ -72,7 +73,8 @@ async fn save_map_design(body: String) -> impl Responder {
     let path = format!("./data/mapDesigns/{}.json", name);
     if let Err(e) = std::fs::create_dir_all("./data/mapDesigns") {
         info!("Fehler beim Erstellen des Verzeichnisses: {}", e);
-        return HttpResponse::InternalServerError().body("Fehler beim Erstellen des Verzeichnisses");
+        return HttpResponse::InternalServerError()
+            .body("Fehler beim Erstellen des Verzeichnisses");
     }
     if let Err(e) = std::fs::write(&path, body) {
         info!("Fehler beim Schreiben der Datei: {}", e);
@@ -86,16 +88,20 @@ async fn save_map_design(body: String) -> impl Responder {
 // load map design(s) from file and return as JSON array
 #[get("/api/mapDesign")]
 async fn load_map_design() -> impl Responder {
-    let mut designs = Vec::new();
+    let mut designs: Vec<Value> = Vec::new();
     let path = "./data/mapDesigns";
-    
+
     // Check if the directory exists
     if let Ok(entries) = std::fs::read_dir(path) {
         for entry in entries {
             if let Ok(entry) = entry {
-                if entry.path().is_file() && entry.path().extension().and_then(|s| s.to_str()) == Some("json") {
+                if entry.path().is_file()
+                    && entry.path().extension().and_then(|s| s.to_str()) == Some("json")
+                {
                     if let Ok(content) = std::fs::read_to_string(entry.path()) {
-                        designs.push(content);
+                        if let Ok(json) = serde_json::from_str::<Value>(&content) {
+                            designs.push(json);
+                        }
                     }
                 }
             }
@@ -107,12 +113,9 @@ async fn load_map_design() -> impl Responder {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-
     // Init logger ASAP
-    env_logger::Builder::from_env(
-        env_logger::Env::default().default_filter_or("info")
-    ).init();
-    
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+
     let port = env::args().nth(1).unwrap_or_else(|| "8080".to_string());
     let bind_addr = format!("127.0.0.1:{}", port);
 
@@ -122,11 +125,11 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(
                 Cors::default()
-                    .allow_any_origin()     // * — no origin restrictions
-                    .allow_any_method()     // GET, POST, PUT, DELETE, etc.
-                    .allow_any_header()     // allow custom headers
+                    .allow_any_origin() // * — no origin restrictions
+                    .allow_any_method() // GET, POST, PUT, DELETE, etc.
+                    .allow_any_header() // allow custom headers
                     .expose_headers([header::CONTENT_DISPOSITION]) // optional
-                    .max_age(3600)          // cache preflight for 1h
+                    .max_age(3600), // cache preflight for 1h
             )
             .service(ping)
             .service(post_data)
