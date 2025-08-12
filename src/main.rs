@@ -49,7 +49,7 @@ async fn post_data(body: String) -> impl Responder {
 }
 
 // Speichere OpenLayer-Feature als JSON, Dateiname kommt aus dem JSON-Feld "name"
-#[post("/api/territoryDesign")]
+#[post("/api/territory")]
 async fn territory_design(body: String) -> impl Responder {
     println!("Empfangene territory design Daten: {}", body);
 

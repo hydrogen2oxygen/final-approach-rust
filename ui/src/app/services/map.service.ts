@@ -1,13 +1,16 @@
-import { Injectable } from '@angular/core';
+import {inject, Injectable} from '@angular/core';
 import { environment } from '../../environments/environment';
 import { Observable } from 'rxjs';
+import {HttpClient} from '@angular/common/http';
 
 @Injectable({
   providedIn: 'root'
 })
 export class MapService {
 
-  constructor() { 
+  private http = inject(HttpClient);
+
+  constructor() {
     console.log('API Base URL:', environment.apiBaseUrl);
     console.log('Production Mode:', environment.production);
   }
@@ -46,5 +49,9 @@ export class MapService {
         observer.complete();
       });
     }
+  }
+
+  saveTerritory(territory:any): Observable<string> {
+    return this.http.post<string>(`${environment.apiBaseUrl}/territory`, territory)
   }
 }

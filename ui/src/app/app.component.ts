@@ -347,6 +347,14 @@ export class AppComponent implements OnInit {
         feature.set('draft', false);
         feature.set('name', new Date().getTime().toString());
         // Here you would typically save the feature to your backend or service
+        this.mapService.saveTerritory(feature).subscribe({
+          "next": (response) => {
+            console.log('Feature saved successfully:', response);
+          },
+          "error": (error) => {
+            console.error('Error saving feature:', error);
+          }
+        })
       }
     });
     this.toastr.success('Modifications saved successfully (simulated)!');
