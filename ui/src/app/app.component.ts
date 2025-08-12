@@ -344,9 +344,22 @@ export class AppComponent implements OnInit {
       if (feature.get('draft') === true) {
         console.log('Modified feature:', feature);
         feature.set('draft', false);
-        feature.set('name', new Date().getTime().toString());
+        feature.set('territoryNumber', new Date().getTime());
+        let mapDesign: TerritoryMap = {
+          draft: false,
+          territoryNumber: feature.get('territoryNumber') || '',
+          territoryName: feature.get('territoryName') || '',
+          formerTerritoryNumber: null,
+          simpleFeatureData: this.wktFormat.writeGeometry(feature.getGeometry() as Geometry) || '',
+          simpleFeatureType: 'Polygon',
+          note: feature.get('note') || '',
+          lastUpdate: new Date(),
+          streetList: [],
+          residentialUnits: [],
+          url: ''
+        }
         // Here you would typically save the feature to your backend or service
-        this.mapService.saveTerritory(feature).subscribe({
+        this.mapService.saveMapDesign(mapDesign).subscribe({
           "next": (response) => {
             console.log('Feature saved successfully:', response);
           },

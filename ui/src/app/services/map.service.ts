@@ -2,6 +2,7 @@ import {inject, Injectable} from '@angular/core';
 import { environment } from '../../environments/environment';
 import { Observable } from 'rxjs';
 import {HttpClient} from '@angular/common/http';
+import {TerritoryMap} from '../domains/MapDesign';
 
 @Injectable({
   providedIn: 'root'
@@ -51,8 +52,8 @@ export class MapService {
     }
   }
 
-  saveTerritory(territory:any): Observable<string> {
-    let data = JSON.stringify(territory)
-    return this.http.post<string>(`${environment.apiBaseUrl}/territory`, data)
+  saveMapDesign(mapDesign:TerritoryMap): Observable<string> {
+    let data = JSON.stringify(mapDesign)
+    return this.http.post<string>(`${environment.apiBaseUrl}/mapDesign`, data)
   }
 }

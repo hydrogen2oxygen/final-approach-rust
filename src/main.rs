@@ -3,8 +3,7 @@ mod websocket;
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use rust_embed::RustEmbed;
 use mime_guess::from_path;
-use std::{env, io};
-use std::io::Write;
+use std::{env};
 use actix_web::http::header;
 use websocket::ws_index;
 use actix_cors::Cors;
@@ -52,10 +51,9 @@ async fn post_data(body: String) -> impl Responder {
 }
 
 // Speichere OpenLayer-Feature als JSON, Dateiname kommt aus dem JSON-Feld "name"
-#[post("/api/territory")]
-async fn save_territory(body: String) -> impl Responder {
-    info!("Empfangene territory design Daten: {}", body);
-    io::stdout().flush().unwrap();
+#[post("/api/mapDesign")]
+async fn save_map_design(body: String) -> impl Responder {
+    info!("Received map design: {}", body);
 
     // Versuche, das JSON zu parsen und den Namen zu extrahieren
     let json: serde_json::Value = match serde_json::from_str(&body) {
@@ -66,11 +64,11 @@ async fn save_territory(body: String) -> impl Responder {
         }
     };
 
-    let name = match json.get("name").and_then(|n| n.as_str()) {
+    let name = match json.get("territoryNumber") {
         Some(n) => n,
         None => {
-            info!("Kein 'name' Feld im JSON gefunden");
-            return HttpResponse::BadRequest().body("Kein 'name' Feld im JSON gefunden");
+            info!("Kein 'territoryNumber' Feld im JSON gefunden");
+            return HttpResponse::BadRequest().body("Kein 'territoryNumber' Feld im JSON gefunden");
         }
     };
 
@@ -113,6 +111,7 @@ async fn main() -> std::io::Result<()> {
             )
             .service(ping)
             .service(post_data)
+            .service(save_map_design)
             .route("/ws", web::get().to(ws_index))
             .service(serve_file)
     })
