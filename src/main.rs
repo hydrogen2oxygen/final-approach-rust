@@ -3,17 +3,20 @@ mod websocket;
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use rust_embed::RustEmbed;
 use mime_guess::from_path;
-use std::env;
+use std::{env, io};
+use std::io::Write;
+use actix_web::http::header;
 use websocket::ws_index;
+use actix_cors::Cors;
+use log::info;
 
 #[derive(RustEmbed)]
 #[folder = "./ui/dist/ui/browser/"]
 struct Asset;
 
-
 #[get("/{filename:.*}")]
 async fn serve_file(path: web::Path<String>) -> impl Responder {
-    //println!("serve_file called with path: {}", path);
+    //info!("serve_file called with path: {}", path);
     let filename = path.into_inner();
     let path = if filename.is_empty() {
         "index.html"
@@ -44,20 +47,21 @@ async fn ping() -> impl Responder {
 
 #[post("/api/data")]
 async fn post_data(body: String) -> impl Responder {
-    println!("Received POST data: {}", body);
+    info!("Received POST data: {}", body);
     HttpResponse::Ok().body("Data received")
 }
 
 // Speichere OpenLayer-Feature als JSON, Dateiname kommt aus dem JSON-Feld "name"
 #[post("/api/territory")]
-async fn territory_design(body: String) -> impl Responder {
-    println!("Empfangene territory design Daten: {}", body);
+async fn save_territory(body: String) -> impl Responder {
+    info!("Empfangene territory design Daten: {}", body);
+    io::stdout().flush().unwrap();
 
     // Versuche, das JSON zu parsen und den Namen zu extrahieren
     let json: serde_json::Value = match serde_json::from_str(&body) {
         Ok(j) => j,
         Err(e) => {
-            println!("Ungültiges JSON: {}", e);
+            info!("Ungültiges JSON: {}", e);
             return HttpResponse::BadRequest().body("Ungültiges JSON");
         }
     };
@@ -65,34 +69,48 @@ async fn territory_design(body: String) -> impl Responder {
     let name = match json.get("name").and_then(|n| n.as_str()) {
         Some(n) => n,
         None => {
-            println!("Kein 'name' Feld im JSON gefunden");
+            info!("Kein 'name' Feld im JSON gefunden");
             return HttpResponse::BadRequest().body("Kein 'name' Feld im JSON gefunden");
         }
     };
 
     let path = format!("./data/{}.json", name);
     if let Err(e) = std::fs::create_dir_all("./data") {
-        println!("Fehler beim Erstellen des Verzeichnisses: {}", e);
+        info!("Fehler beim Erstellen des Verzeichnisses: {}", e);
         return HttpResponse::InternalServerError().body("Fehler beim Erstellen des Verzeichnisses");
     }
     if let Err(e) = std::fs::write(&path, body) {
-        println!("Fehler beim Schreiben der Datei: {}", e);
+        info!("Fehler beim Schreiben der Datei: {}", e);
         return HttpResponse::InternalServerError().body("Fehler beim Schreiben der Datei");
     }
-    println!("Territory design Daten gespeichert unter {}", path);
+    info!("Territory design Daten gespeichert unter {}", path);
 
     HttpResponse::Ok().body("Territory design Daten empfangen und gespeichert")
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+
+    // Init logger ASAP
+    env_logger::Builder::from_env(
+        env_logger::Env::default().default_filter_or("info")
+    ).init();
+    
     let port = env::args().nth(1).unwrap_or_else(|| "8080".to_string());
     let bind_addr = format!("127.0.0.1:{}", port);
 
-    println!("Starting server ... http:\\\\{}", bind_addr);
+    info!("Starting server ... http:\\\\{}", bind_addr);
 
     HttpServer::new(|| {
         App::new()
+            .wrap(
+                Cors::default()
+                    .allow_any_origin()     // * — no origin restrictions
+                    .allow_any_method()     // GET, POST, PUT, DELETE, etc.
+                    .allow_any_header()     // allow custom headers
+                    .expose_headers([header::CONTENT_DISPOSITION]) // optional
+                    .max_age(3600)          // cache preflight for 1h
+            )
             .service(ping)
             .service(post_data)
             .route("/ws", web::get().to(ws_index))

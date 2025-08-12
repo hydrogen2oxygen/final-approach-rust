@@ -52,6 +52,7 @@ export class MapService {
   }
 
   saveTerritory(territory:any): Observable<string> {
-    return this.http.post<string>(`${environment.apiBaseUrl}/territory`, territory)
+    let data = JSON.stringify(territory)
+    return this.http.post<string>(`${environment.apiBaseUrl}/territory`, data)
   }
 }
