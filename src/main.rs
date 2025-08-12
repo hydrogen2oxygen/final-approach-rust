@@ -15,7 +15,6 @@ struct Asset;
 
 #[get("/{filename:.*}")]
 async fn serve_file(path: web::Path<String>) -> impl Responder {
-    //info!("serve_file called with path: {}", path);
     let filename = path.into_inner();
     let path = if filename.is_empty() {
         "index.html"
@@ -54,7 +53,6 @@ async fn post_data(body: String) -> impl Responder {
 async fn save_map_design(body: String) -> impl Responder {
     info!("Received map design: {}", body);
 
-    // Versuche, das JSON zu parsen und den Namen zu extrahieren
     let json: serde_json::Value = match serde_json::from_str(&body) {
         Ok(j) => j,
         Err(e) => {
@@ -133,6 +131,7 @@ async fn main() -> std::io::Result<()> {
             .service(ping)
             .service(post_data)
             .service(save_map_design)
+            .service(load_map_design)
             .route("/ws", web::get().to(ws_index))
             .service(serve_file)
     })

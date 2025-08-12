@@ -1,16 +1,38 @@
 <h2 mat-dialog-title>{{appName}}</h2>
+<a class="github-fork-ribbon" href="https://github.com/hydrogen2oxygen/final-approach-rust" data-ribbon="Fork me on GitHub" title="Fork me on GitHub">Fork me on GitHub</a>
 <mat-dialog-content>
     <p>Version {{version}}</p>
     <p>Press <b>F-11</b> key for <b>fullscreen</b>.</p>
 
-    <div *ngIf="!home">
-        <h2>TODO List</h2>
-        <ul>
-            <li *ngIf="!home">Set your home coordinates, click on the <mat-icon>home</mat-icon> "home" button!</li>
-        </ul>
+    <div style="display: flex; gap: 2rem;">
+        <div class="col">
+          <h3>Shortcuts</h3>
+          <ul>
+            <li><span class="badge">CTRL+D</span> Draw a polygon</li>
+            <li><span class="badge">CTRL+E</span> Edit mode</li>
+            <li><span class="badge">CTRL+S</span> Save modifications</li>
+            <li><span class="badge">DEL</span> Delete selected polygon</li>
+            <li><span class="badge">ESC</span> Stop editing</li>
+            <li><span class="badge">F-11</span> Fullscreen mode</li>
+          </ul>
+        </div>
+        <div class="col">
+          <h3>Shortcuts</h3>
+          <ul>
+            <li><span class="badge">CTRL+D</span> Draw a polygon</li>
+            <li><span class="badge">CTRL+E</span> Edit mode</li>
+            <li><span class="badge">CTRL+S</span> Save modifications</li>
+            <li><span class="badge">DEL</span> Delete selected polygon</li>
+            <li><span class="badge">ESC</span> Stop editing</li>
+            <li><span class="badge">F-11</span> Fullscreen mode</li>
+          </ul>
+        </div>
     </div>
+
+  @if(!home) {
+    <h2>TODO List</h2>
+    <ul>
+        <li>Set your home coordinates, click on the <mat-icon>home</mat-icon> "home" button!</li>
+    </ul>
+  }
 </mat-dialog-content>
-<mat-dialog-actions>
-  <a style="position:absolute!important; left: 1rem!important; color:white" href="https://github.com/hydrogen2oxygen/final-approach-rust" target="github">{{appName}} on Github</a>
-    <button mat-button mat-dialog-close>Close</button>
-</mat-dialog-actions>

@@ -11,19 +11,24 @@
 
 <div  style="position: fixed; left: 5rem; top: 1rem; display: flex; flex-direction: row; gap: 0.5rem;">
   @if (interaction) {
-    <button class="icon-button icon-primary" (click)="removeInteraction()" title="Draw Polygon">
+    <button class="icon-button icon-primary" (click)="removeInteraction()" title="Stop Editing (ESC)">
       <mat-icon>stop_circle</mat-icon>
     </button>
   }
-  <button class="icon-button icon-primary" [class.activeMode]="interactionType == 'DRAW'" (click)="drawPolygon()" title="Draw Polygon">
+  <button class="icon-button icon-primary" [class.activeMode]="interactionType == 'DRAW'" (click)="drawPolygon()" title="Draw Polygon (CTRL + D)">
     <mat-icon>polyline</mat-icon>
   </button>
-  <button class="icon-button icon-warning" [class.activeMode]="interactionType == 'EDIT'" (click)="editFeature()" title="Edit Polygon">
+  <button class="icon-button icon-warning" [class.activeMode]="interactionType == 'EDIT'" (click)="editFeature()" title="Edit Polygon (CTRL + E)">
     <mat-icon>edit</mat-icon>
   </button>
   @if (modifiedFeatures) {
-    <button class="icon-button icon-warning" (click)="saveModifications()" title="Save">
+    <button class="icon-button icon-warning" (click)="saveModifications()" title="Save (CTRL + S)">
       <mat-icon>save</mat-icon>
+    </button>
+  }
+  @if (lastSelectedFeature) {
+    <button class="icon-button icon-danger" (click)="deleteFeature()" title="Delete Polygon">
+      <mat-icon>delete</mat-icon>
     </button>
   }
 </div>

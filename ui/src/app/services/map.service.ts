@@ -52,6 +52,10 @@ export class MapService {
     }
   }
 
+  loadMapDesign() {
+    return this.http.get<TerritoryMap[]>(`${environment.apiBaseUrl}/mapDesign`);
+  }
+
   saveMapDesign(mapDesign:TerritoryMap) {
     let data = JSON.stringify(mapDesign)
     return this.http.post<{status: string}>(`${environment.apiBaseUrl}/mapDesign`, data)
