@@ -502,6 +502,7 @@ dependencies = [
  "actix-web-actors",
  "mime_guess",
  "rust-embed",
+ "serde_json",
 ]
 
 [[package]]

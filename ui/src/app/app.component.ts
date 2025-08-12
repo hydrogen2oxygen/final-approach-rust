@@ -340,6 +340,15 @@ export class AppComponent implements OnInit {
 
   saveModifications() {
     this.modifiedFeatures = false;
+    // list all modified features
+    this.source.getFeatures().forEach(feature => {
+      if (feature.get('draft') === true) {
+        console.log('Modified feature:', feature);
+        feature.set('draft', false);
+        feature.set('name', new Date().getTime().toString());
+        // Here you would typically save the feature to your backend or service
+      }
+    });
     this.toastr.success('Modifications saved successfully (simulated)!');
   }
 }

@@ -48,6 +48,42 @@ async fn post_data(body: String) -> impl Responder {
     HttpResponse::Ok().body("Data received")
 }
 
+// Speichere OpenLayer-Feature als JSON, Dateiname kommt aus dem JSON-Feld "name"
+#[post("/api/territoryDesign")]
+async fn territory_design(body: String) -> impl Responder {
+    println!("Empfangene territory design Daten: {}", body);
+
+    // Versuche, das JSON zu parsen und den Namen zu extrahieren
+    let json: serde_json::Value = match serde_json::from_str(&body) {
+        Ok(j) => j,
+        Err(e) => {
+            println!("Ungültiges JSON: {}", e);
+            return HttpResponse::BadRequest().body("Ungültiges JSON");
+        }
+    };
+
+    let name = match json.get("name").and_then(|n| n.as_str()) {
+        Some(n) => n,
+        None => {
+            println!("Kein 'name' Feld im JSON gefunden");
+            return HttpResponse::BadRequest().body("Kein 'name' Feld im JSON gefunden");
+        }
+    };
+
+    let path = format!("./data/{}.json", name);
+    if let Err(e) = std::fs::create_dir_all("./data") {
+        println!("Fehler beim Erstellen des Verzeichnisses: {}", e);
+        return HttpResponse::InternalServerError().body("Fehler beim Erstellen des Verzeichnisses");
+    }
+    if let Err(e) = std::fs::write(&path, body) {
+        println!("Fehler beim Schreiben der Datei: {}", e);
+        return HttpResponse::InternalServerError().body("Fehler beim Schreiben der Datei");
+    }
+    println!("Territory design Daten gespeichert unter {}", path);
+
+    HttpResponse::Ok().body("Territory design Daten empfangen und gespeichert")
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let port = env::args().nth(1).unwrap_or_else(|| "8080".to_string());
