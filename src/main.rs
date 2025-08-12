@@ -50,7 +50,6 @@ async fn post_data(body: String) -> impl Responder {
     HttpResponse::Ok().body("Data received")
 }
 
-// Speichere OpenLayer-Feature als JSON, Dateiname kommt aus dem JSON-Feld "name"
 #[post("/api/mapDesign")]
 async fn save_map_design(body: String) -> impl Responder {
     info!("Received map design: {}", body);
@@ -72,8 +71,8 @@ async fn save_map_design(body: String) -> impl Responder {
         }
     };
 
-    let path = format!("./data/{}.json", name);
-    if let Err(e) = std::fs::create_dir_all("./data") {
+    let path = format!("./data/mapDesigns/{}.json", name);
+    if let Err(e) = std::fs::create_dir_all("./data/mapDesigns") {
         info!("Fehler beim Erstellen des Verzeichnisses: {}", e);
         return HttpResponse::InternalServerError().body("Fehler beim Erstellen des Verzeichnisses");
     }
@@ -83,7 +82,29 @@ async fn save_map_design(body: String) -> impl Responder {
     }
     info!("Territory design Daten gespeichert unter {}", path);
 
-    HttpResponse::Ok().body("Territory design Daten empfangen und gespeichert")
+    HttpResponse::Ok().json(serde_json::json!({"status":"ok"}))
+}
+
+// load map design(s) from file and return as JSON array
+#[get("/api/mapDesign")]
+async fn load_map_design() -> impl Responder {
+    let mut designs = Vec::new();
+    let path = "./data/mapDesigns";
+    
+    // Check if the directory exists
+    if let Ok(entries) = std::fs::read_dir(path) {
+        for entry in entries {
+            if let Ok(entry) = entry {
+                if entry.path().is_file() && entry.path().extension().and_then(|s| s.to_str()) == Some("json") {
+                    if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                        designs.push(content);
+                    }
+                }
+            }
+        }
+    }
+
+    HttpResponse::Ok().json(designs)
 }
 
 #[actix_web::main]

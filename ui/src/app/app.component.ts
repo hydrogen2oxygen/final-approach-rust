@@ -361,14 +361,14 @@ export class AppComponent implements OnInit {
         // Here you would typically save the feature to your backend or service
         this.mapService.saveMapDesign(mapDesign).subscribe({
           "next": (response) => {
-            console.log('Feature saved successfully:', response);
+            this.toastr.success('Map Design saved successfully');
           },
           "error": (error) => {
-            console.error('Error saving feature:', error);
+            console.log(error)
+            this.toastr.error('Error saving feature:', error);
           }
         })
       }
     });
-    this.toastr.success('Modifications saved successfully (simulated)!');
   }
 }

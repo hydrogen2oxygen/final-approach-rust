@@ -14,6 +14,11 @@ Run
 .\target\release\finalApproach.exe
 ````
 
+PowerShell Run
+````powershell
+$env:RUST_LOG="info"; cargo run
+````
+
 ### Notes on Design
 - all in one page, all components are dialogs
 - fake sftp and webserver during developing mode
