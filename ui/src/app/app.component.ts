@@ -1,24 +1,23 @@
-import { Component, OnInit } from '@angular/core';
+import {Component, OnInit} from '@angular/core';
 import Map from 'ol/Map';
 import View from 'ol/View';
 import TileLayer from 'ol/layer/Tile';
 import OSM from 'ol/source/OSM';
-import { MatDialog } from '@angular/material/dialog';
-import { InfoDialogComponent } from './components/info-dialog/info-dialog.component';
-import { CommonModule } from '@angular/common';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialogModule } from '@angular/material/dialog';
-import { MatIconModule } from '@angular/material/icon';
-import { MapService } from './services/map.service';
-import { ToastrService } from 'ngx-toastr';
-import { AppService } from './services/app.service';
-import { PingService } from './services/ping.service';
+import {MatDialog, MatDialogModule} from '@angular/material/dialog';
+import {InfoDialogComponent} from './components/info-dialog/info-dialog.component';
+import {CommonModule} from '@angular/common';
+import {MatButtonModule} from '@angular/material/button';
+import {MatIconModule} from '@angular/material/icon';
+import {MapService} from './services/map.service';
+import {ToastrService} from 'ngx-toastr';
+import {AppService} from './services/app.service';
+import {PingService} from './services/ping.service';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import {Fill, Stroke, Style, Text} from 'ol/style';
 import {FeatureLike} from 'ol/Feature';
 import {FormControl} from '@angular/forms';
-import {DragAndDrop, Draw, Select} from 'ol/interaction';
+import {DragAndDrop, Draw, Modify, Select} from 'ol/interaction';
 import {GeoJSON, GPX, IGC, KML, TopoJSON, WKT} from 'ol/format';
 import {Feature} from 'ol';
 import {TerritoryMap} from './domains/MapDesign';
@@ -57,6 +56,8 @@ export class AppComponent implements OnInit {
   lastSavedTerritoryName: string = '';
   importedFeature: Feature | undefined = undefined;
   interaction: any = null;
+  interactionType: string | undefined
+  modifiedFeatures: boolean = false;
   appName = 'Final Approach Rust UI';
   version = '1.0.0';
 
@@ -69,9 +70,15 @@ export class AppComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+
     this.pingService.ping().subscribe(response => {
       console.log('Ping response:', response);
     });
+    this.appService.getAppInfo().subscribe(info => {
+      this.appName = info.appName;
+      this.version = info.version;
+    });
+
     this.osmLayer = new TileLayer({
           source: new OSM({
             attributions: []
@@ -100,7 +107,6 @@ export class AppComponent implements OnInit {
     this.map.addInteraction(this.dragAndDropInteraction);
     this.selectInteraction.on('select', e => {
       if (e.deselected) {
-        console.log("deselect")
         this.lastSelectedFeature = undefined;
         this.territoryCustomNumber.setValue(null);
         this.territoryCustomName.setValue(null);
@@ -122,12 +128,40 @@ export class AppComponent implements OnInit {
       })*/
     });
     this.loadHome()
-    this.appService.getAppInfo().subscribe(info => {
-      this.appName = info.appName;
-      this.version = info.version;
-      console.log('App Name:', this.appName);
+    this.loadMapDesign()
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        this.removeInteraction();
+        this.modeSelected = '';
+        this.lastSelectedFeature = undefined;
+        this.territoryCustomNumber.setValue(null);
+        this.territoryCustomName.setValue(null);
+        this.note.setValue(null);
+      } else if (event.ctrlKey && event.key === 's') {
+        event.preventDefault(); // Prevent the default save action
+        this.saveModifications();
+      } else if (event.ctrlKey && event.key === 'd') {
+        event.preventDefault(); // Prevent the default action
+        this.drawPolygon();
+      } else if (event.ctrlKey && event.key === 'e') {
+        event.preventDefault(); // Prevent the default action
+        this.editFeature();
+      } else if (event.key === 'Delete' && this.lastSelectedFeature) {
+        event.preventDefault(); // Prevent the default action
+        this.deleteFeature();
+      } else if (event.ctrlKey && event.key === 'i') {
+        event.preventDefault(); // Prevent the default action
+        this.openDialog();
+      }
     });
 
+    // Listen to click on map feature
+    this.map.on('click', (event) => {
+      const feature = this.map?.forEachFeatureAtPixel(event.pixel, (feature) => {
+        return feature;
+      });
+    });
   }
 
   public createStyle(fillColor:any = [0, 0, 0, 0.1], strokeColor:any = [255, 0, 0, 0.5], strokeWidth:number = 5, textFillColor:string = '#000', textStrokeColor:string = '#fff', textStrokeWidth:number = 3):Style {
@@ -183,10 +217,10 @@ export class AppComponent implements OnInit {
     return style;
   }
 
-
   openDialog(): void {
     this.dialog.open(InfoDialogComponent, {
-      width: '800px',
+      width: '1200px',
+      minWidth: '500px',
       data: {
         appName: this.appName,
         version: this.version,
@@ -221,7 +255,6 @@ export class AppComponent implements OnInit {
 
   loadHome(): void {
     this.mapService.loadHome().subscribe(home => {
-      console.log('Loaded home view:', home);
       this.home = home;
       if (home && this.map) {
         this.map.getView().setCenter(home.coordinates);
@@ -236,54 +269,152 @@ export class AppComponent implements OnInit {
     this.modeSelected = 'polygon';
   }
 
+  editFeature() {
+
+    if (this.interaction != null) {
+      this.removeInteraction();
+    }
+
+    this.interaction = new Modify({
+      source: this.source
+    });
+
+    let modify: Modify = this.interaction;
+
+    modify.on('modifyend', evt => {
+
+      let modifiedFeature = evt.features.getArray()[0];
+      this.territoryCustomNumber.setValue(modifiedFeature.get('territoryNumber'));
+      this.territoryCustomName.setValue(modifiedFeature.get('territoryName'));
+      this.note.setValue(modifiedFeature.get('note'));
+      this.lastSavedTerritoryName = this.territoryCustomNumber.value + ' ' + this.territoryCustomName.value;
+
+      /*FIXME this.map.territoryMapList.forEach(t => {
+        if (t.territoryNumber == this.territoryCustomNumber.value) {
+          let data = this.wktFormat.writeGeometry(<Geometry>modifiedFeature.getGeometry());
+          t.simpleFeatureData = data;
+          t.draft = true; // it remains a "draft" until you activate it
+          t.lastUpdate = new Date();
+          this.featureModified = true;
+        }
+      })*/
+
+    })
+
+    modify.on('change', evt => {
+      this.modifiedFeatures = true;
+    })
+
+    this.map?.addInteraction(this.interaction);
+    this.modeSelected = 'edit';
+    this.interactionType = 'EDIT'
+  }
+
   private addInteraction(type: string) {
     this.removeInteraction();
+    this.interactionType = 'DRAW';
     this.interaction = new Draw({
       type: type as any,
       source: this.source
     });
     let draw: Draw = this.interaction;
     draw.on('drawend', evt => {
-      console.log('draw ended!');
+      console.log("drawend", evt);
+      this.modifiedFeatures = true;
       this.lastSelectedFeature = evt.feature;
-
-      let territoryMap = new TerritoryMap();
-      territoryMap.draft = true;
-      territoryMap.lastUpdate = new Date();
-      let data = this.wktFormat.writeGeometry(<Geometry>this.lastSelectedFeature?.getGeometry());
-
-      if (data == null || data == undefined) {
-        data = '';
-      }
-
-      territoryMap.simpleFeatureData = data;
-
-      /* FIXME this.mapDesignService.saveTerritoryMap(territoryMap).subscribe((t: TerritoryMap) => {
-
-        console.log(t)
-        //this.lastSelectedFeature = undefined;
-
-        if (this.lastSelectedFeature) {
-          this.lastSelectedFeature.set('territoryNumber', t.territoryNumber);
-          this.lastSelectedFeature.set('territoryName', t.territoryName);
-          this.lastSelectedFeature.set('name', '' + t.territoryNumber);
-          this.lastSelectedFeature.set('note', t.note);
-          this.lastSelectedFeature.set('draft', t.draft);
-          this.lastSelectedFeature.setId(territoryMap.territoryNumber);
-          //this.source.addFeature(feature);
-          console.log(this.lastSelectedFeature)
-          this.mapDesign.territoryMapList.push(t);
-        }
-      });*/
-
+      this.lastSelectedFeature.set('draft', true);
     });
 
     this.map?.addInteraction(this.interaction);
     this.modeSelected = 'navigate';
   }
 
-  private removeInteraction() {
+  removeInteraction() {
     this.map?.removeInteraction(this.interaction);
     this.interaction = null;
+    this.interactionType = undefined
+  }
+
+  saveModifications() {
+    this.modifiedFeatures = false;
+    // list all modified features
+    let i = 0;
+    this.source.getFeatures().forEach(feature => {
+
+        console.log('Modified feature:', feature);
+        feature.set('draft', false);
+        if (!feature.get('territoryNumber')) {
+          feature.set('territoryNumber', new Date().getTime() + i);
+        }
+
+        feature.set('name', feature.get('territoryNumber'));
+        i++;
+        let mapDesign: TerritoryMap = {
+          draft: false,
+          territoryNumber: feature.get('territoryNumber') || '',
+          territoryName: '',
+          formerTerritoryNumber: null,
+          simpleFeatureData: this.wktFormat.writeGeometry(feature.getGeometry() as Geometry) || '',
+          simpleFeatureType: 'Polygon',
+          note: feature.get('note') || '',
+          lastUpdate: new Date(),
+          streetList: [],
+          residentialUnits: [],
+          url: ''
+        }
+        // Here you would typically save the feature to your backend or service
+        this.mapService.saveMapDesign(mapDesign).subscribe({
+          "next": (response) => {
+            this.toastr.success('Map Design saved successfully');
+          },
+          "error": (error) => {
+            console.log(error)
+            this.toastr.error('Error saving feature:', error);
+          }
+        })
+    });
+  }
+
+  deleteFeature() {
+
+    this.mapService.deleteMapDesign(this.lastSelectedFeature.get("territoryNumber")).subscribe({
+      next: (response) => {
+        this.toastr.success('Feature deleted successfully');
+        this.source.removeFeature(this.lastSelectedFeature)
+        this.lastSelectedFeature = undefined;
+      },
+      error: (error) => {
+        console.error('Error deleting feature:', error);
+        this.toastr.error('Error deleting feature: ' + error.message);
+      }
+    })
+
+  }
+
+  loadMapDesign() {
+    this.mapService.loadMapDesign().subscribe({
+      next: (mapDesigns: TerritoryMap[]) => {
+        this.source.clear();
+
+        mapDesigns.forEach(mapDesign => {
+          if (mapDesign.simpleFeatureData) {
+            let geometry = this.wktFormat.readGeometry(mapDesign.simpleFeatureData);
+            let feature = new Feature({
+              geometry: geometry,
+              territoryNumber: mapDesign.territoryNumber,
+              territoryName: mapDesign.territoryName || mapDesign.territoryNumber, // if empty, it will be set to territoryNumber
+              note: mapDesign.note,
+              draft: mapDesign.draft,
+              imported: false // Set to true if the feature is imported
+            });
+            feature.set('name', feature.get('territoryName'));
+            this.source.addFeature(feature);
+          }
+        });
+      },
+      error: (error) => {
+        console.error('Error loading map design:', error);
+      }
+    });
   }
 }

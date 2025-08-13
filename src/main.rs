@@ -1,47 +1,21 @@
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
-use rust_embed::RustEmbed;
-use mime_guess::from_path;
-use std::env;
-use serde::{Deserialize, Serialize};
-use std::fs;
-//use std::sync::Mutex;
+mod websocket;
 
-/**
-* Main entry point for the web server.
-* This server serves static files from the `ui/dist/ui/browser/` directory
-* and provides an API to get and set user settings and more in the future.
-* Build it with `cargo build --release` or run it with `cargo run --release`.
-* The executable embeds the static files, so you don't need to worry about.
-*/
+use actix_cors::Cors;
+use actix_web::http::header;
+use actix_web::{delete, get, post, web, App, HttpResponse, HttpServer, Responder};
+use log::info;
+use mime_guess::from_path;
+use rust_embed::RustEmbed;
+use serde_json::Value;
+use std::env;
+use websocket::ws_index;
 
 #[derive(RustEmbed)]
 #[folder = "./ui/dist/ui/browser/"]
 struct Asset;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Settings {
-    pub home_coordinates: String,
-    pub home_zoom: u8,
-}
-
-const SETTINGS_PATH: &str = "data/settings.json";
-
-fn read_settings() -> std::io::Result<Settings> {
-    let data = fs::read_to_string(SETTINGS_PATH)?;
-    let settings: Settings = serde_json::from_str(&data)?;
-    Ok(settings)
-}
-
-fn write_settings(new_settings: &Settings) -> std::io::Result<()> {
-    let data = serde_json::to_string_pretty(new_settings)?;
-    fs::write(SETTINGS_PATH, data)?;
-    println!("Settings saved to {}", SETTINGS_PATH);
-    Ok(())
-}
-
 #[get("/{filename:.*}")]
 async fn serve_file(path: web::Path<String>) -> impl Responder {
-    //println!("serve_file called with path: {}", path);
     let filename = path.into_inner();
     let path = if filename.is_empty() {
         "index.html"
@@ -70,50 +44,112 @@ async fn ping() -> impl Responder {
     HttpResponse::Ok().body("pong")
 }
 
-#[get("/api/settings")]
-async fn get_settings() -> impl Responder {
-    if !std::path::Path::new(SETTINGS_PATH).exists() {
-        init_settings()
-    } else {
-        match read_settings() {
-            Ok(settings) => HttpResponse::Ok().json(settings),
-            Err(_) => HttpResponse::InternalServerError().body("Could not read settings."),
+#[post("/api/data")]
+async fn post_data(body: String) -> impl Responder {
+    info!("Received POST data: {}", body);
+    HttpResponse::Ok().body("Data received")
+}
+
+#[post("/api/mapDesign")]
+async fn save_map_design(body: String) -> impl Responder {
+    info!("Received map design: {}", body);
+
+    let json: serde_json::Value = match serde_json::from_str(&body) {
+        Ok(j) => j,
+        Err(e) => {
+            info!("Ungültiges JSON: {}", e);
+            return HttpResponse::BadRequest().body("Ungültiges JSON");
+        }
+    };
+
+    let name = match json.get("territoryNumber") {
+        Some(n) => n,
+        None => {
+            info!("Kein 'territoryNumber' Feld im JSON gefunden");
+            return HttpResponse::BadRequest().body("Kein 'territoryNumber' Feld im JSON gefunden");
+        }
+    };
+
+    let path = format!("./data/mapDesigns/{}.json", name);
+    if let Err(e) = std::fs::create_dir_all("./data/mapDesigns") {
+        info!("Fehler beim Erstellen des Verzeichnisses: {}", e);
+        return HttpResponse::InternalServerError()
+            .body("Fehler beim Erstellen des Verzeichnisses");
+    }
+    if let Err(e) = std::fs::write(&path, body) {
+        info!("Fehler beim Schreiben der Datei: {}", e);
+        return HttpResponse::InternalServerError().body("Fehler beim Schreiben der Datei");
+    }
+    info!("Territory design Daten gespeichert unter {}", path);
+
+    HttpResponse::Ok().json(serde_json::json!({"status":"ok"}))
+}
+
+#[get("/api/mapDesign")]
+async fn load_map_design() -> impl Responder {
+    let mut designs: Vec<Value> = Vec::new();
+    let path = "./data/mapDesigns";
+
+    // Check if the directory exists
+    if let Ok(entries) = std::fs::read_dir(path) {
+        for entry in entries {
+            if let Ok(entry) = entry {
+                if entry.path().is_file()
+                    && entry.path().extension().and_then(|s| s.to_str()) == Some("json")
+                {
+                    if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                        if let Ok(json) = serde_json::from_str::<Value>(&content) {
+                            designs.push(json);
+                        }
+                    }
+                }
+            }
         }
     }
+
+    HttpResponse::Ok().json(designs)
 }
 
-fn init_settings() -> HttpResponse {
-    let default_settings = Settings {
-        home_coordinates: "0,0".to_string(),
-        home_zoom: 2,
-    };
-    if let Err(e) = write_settings(&default_settings) {
-        return HttpResponse::InternalServerError().body(format!("Could not create settings file: {}", e));
+#[delete("/api/mapDesign/{territory_number}")]
+async fn delete_map_design(territory_number: web::Path<String>) -> impl Responder {
+    let path = format!("./data/mapDesigns/{}.json", territory_number);
+
+    if std::fs::remove_file(&path).is_ok() {
+        info!("Map design {} deleted", territory_number);
+        HttpResponse::Ok().json(serde_json::json!({"status": "ok"}))
+    } else {
+        info!("Map design {} not found", territory_number);
+        HttpResponse::NotFound().json(serde_json::json!({"status": "not found"}))
     }
-    HttpResponse::Ok().json(default_settings)
 }
 
-#[post("/api/settings")]
-async fn post_settings(new_settings: web::Json<Settings>) -> impl Responder {
-    match write_settings(&new_settings.into_inner()) {
-        Ok(_) => HttpResponse::Ok().body("Settings saved."),
-        Err(_) => HttpResponse::InternalServerError().body("Could not write settings."),
-    }
-}
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    // Init logger ASAP
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+
     let port = env::args().nth(1).unwrap_or_else(|| "8080".to_string());
     let bind_addr = format!("127.0.0.1:{}", port);
 
-    println!("Starting server ... http:\\\\{}", bind_addr);
-
+    info!("Starting server ... http:\\\\{}", bind_addr);
 
     HttpServer::new(|| {
         App::new()
+            .wrap(
+                Cors::default()
+                    .allow_any_origin() // * — no origin restrictions
+                    .allow_any_method() // GET, POST, PUT, DELETE, etc.
+                    .allow_any_header() // allow custom headers
+                    .expose_headers([header::CONTENT_DISPOSITION]) // optional
+                    .max_age(3600), // cache preflight for 1h
+            )
             .service(ping)
-            .service(get_settings)
-            .service(post_settings)
+            .service(post_data)
+            .service(save_map_design)
+            .service(load_map_design)
+            .service(delete_map_design)
+            .route("/ws", web::get().to(ws_index))
             .service(serve_file)
     })
     .bind(bind_addr)?

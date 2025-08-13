@@ -1,13 +1,17 @@
-import { Injectable } from '@angular/core';
+import {inject, Injectable} from '@angular/core';
 import { environment } from '../../environments/environment';
 import { Observable } from 'rxjs';
+import {HttpClient} from '@angular/common/http';
+import {TerritoryMap} from '../domains/MapDesign';
 
 @Injectable({
   providedIn: 'root'
 })
 export class MapService {
 
-  constructor() { 
+  private http = inject(HttpClient);
+
+  constructor() {
     console.log('API Base URL:', environment.apiBaseUrl);
     console.log('Production Mode:', environment.production);
   }
@@ -46,5 +50,18 @@ export class MapService {
         observer.complete();
       });
     }
+  }
+
+  loadMapDesign() {
+    return this.http.get<TerritoryMap[]>(`${environment.apiBaseUrl}/mapDesign`);
+  }
+
+  saveMapDesign(mapDesign:TerritoryMap) {
+    let data = JSON.stringify(mapDesign)
+    return this.http.post<{status: string}>(`${environment.apiBaseUrl}/mapDesign`, data)
+  }
+
+  deleteMapDesign(territoryNumber: string) {
+    return this.http.delete<{status: string}>(`${environment.apiBaseUrl}/mapDesign/${territoryNumber}`);
   }
 }
