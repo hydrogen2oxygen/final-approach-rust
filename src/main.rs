@@ -44,12 +44,6 @@ async fn ping() -> impl Responder {
     HttpResponse::Ok().body("pong")
 }
 
-#[post("/api/data")]
-async fn post_data(body: String) -> impl Responder {
-    info!("Received POST data: {}", body);
-    HttpResponse::Ok().body("Data received")
-}
-
 #[post("/api/mapDesign")]
 async fn save_map_design(body: String) -> impl Responder {
     info!("Received map design: {}", body);
@@ -145,12 +139,11 @@ async fn main() -> std::io::Result<()> {
                     .max_age(3600), // cache preflight for 1h
             )
             .service(ping)
-            .service(post_data)
             .service(save_map_design)
             .service(load_map_design)
             .service(delete_map_design)
-            .route("/ws", web::get().to(ws_index))
-            .service(serve_file)
+            .service(serve_file) // http server, before ws
+            .route("/ws", web::get().to(ws_index)) // leave it on last position, else CORS error arise
     })
     .bind(bind_addr)?
     .run()

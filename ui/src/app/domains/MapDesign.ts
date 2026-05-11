@@ -16,7 +16,6 @@ export class TerritoryMap {
   note:string='';
   lastUpdate:Date=new Date();
   streetList:OsmStreet[] = [];
-
   residentialUnits:ResidentialUnit[] = [];
   url:string='';
 }

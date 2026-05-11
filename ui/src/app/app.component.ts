@@ -22,6 +22,7 @@ import {GeoJSON, GPX, IGC, KML, TopoJSON, WKT} from 'ol/format';
 import {Feature} from 'ol';
 import {TerritoryMap,Personas} from './domains/MapDesign';
 import {Geometry} from 'ol/geom';
+import {DocumentationComponent} from './components/documentation/documentation.component';
 
 @Component({
     selector: 'app-root',
@@ -268,6 +269,16 @@ export class AppComponent implements OnInit {
     });
   }
 
+  openDocumentation(): void {
+    this.dialog.open(DocumentationComponent, {
+      minWidth: '90%',
+      data: {
+        appName: this.appName,
+        version: this.version
+      }
+    })
+  }
+
   saveHome(): void {
     this.mapService.saveHome(this.map).subscribe(() => {
       this.mapService.loadHome().subscribe(home => {
@@ -391,6 +402,9 @@ export class AppComponent implements OnInit {
           residentialUnits: [],
           url: ''
         }
+
+        console.log(mapDesign)
+
         // Here you would typically save the feature to your backend or service
         this.mapService.saveMapDesign(mapDesign).subscribe({
           "next": (response) => {

@@ -57,8 +57,7 @@ export class MapService {
   }
 
   saveMapDesign(mapDesign:TerritoryMap) {
-    let data = JSON.stringify(mapDesign)
-    return this.http.post<{status: string}>(`${environment.apiBaseUrl}/mapDesign`, data)
+    return this.http.post<{status: string}>(`${environment.apiBaseUrl}/mapDesign`, mapDesign)
   }
 
   deleteMapDesign(territoryNumber: string) {
