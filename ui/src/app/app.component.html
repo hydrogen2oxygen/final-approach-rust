@@ -3,16 +3,13 @@
     <button class="icon-button icon-primary" (click)="openDialog()" title="Info">
         <mat-icon>info_outline</mat-icon>
     </button>
-    <button class="icon-button icon-success" (click)="saveHome()" title="Set Home Coordinates">
-        <mat-icon>home</mat-icon>
-    </button>
-
 </div>
 
 <div  style="position: fixed; left: 5rem; top: 1rem; display: flex; flex-direction: row; gap: 0.5rem;">
   @switch (persona) {
     @case ('DESIGNER') {
       <button class="icon-button icon-primary" title="DESIGNER"><mat-icon>design_services</mat-icon></button>
+      <button class="icon-button icon-success" (click)="saveHome()" title="Set Home Coordinates"><mat-icon>home</mat-icon></button>
     }
     @case ('MANAGER') {
       <button class="icon-button icon-primary" title="MANAGER"><mat-icon>manage_accounts</mat-icon></button>

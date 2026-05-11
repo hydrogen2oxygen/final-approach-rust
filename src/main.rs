@@ -44,11 +44,12 @@ async fn ping() -> impl Responder {
     HttpResponse::Ok().body("pong")
 }
 
-#[post("/api/mapDesign")]
-async fn save_map_design(body: String) -> impl Responder {
+#[post("/api/data/{path}/{id}")]
+async fn save(request_path: web::Path<(String,String)>, body: String) -> impl Responder {
+    let (path, id) = request_path.into_inner();
     info!("Received map design: {}", body);
 
-    let json: serde_json::Value = match serde_json::from_str(&body) {
+    match serde_json::from_str::<serde_json::Value>(&body) {
         Ok(j) => j,
         Err(e) => {
             info!("Ungültiges JSON: {}", e);
@@ -56,16 +57,8 @@ async fn save_map_design(body: String) -> impl Responder {
         }
     };
 
-    let name = match json.get("territoryNumber") {
-        Some(n) => n,
-        None => {
-            info!("Kein 'territoryNumber' Feld im JSON gefunden");
-            return HttpResponse::BadRequest().body("Kein 'territoryNumber' Feld im JSON gefunden");
-        }
-    };
-
-    let path = format!("./data/mapDesigns/{}.json", name);
-    if let Err(e) = std::fs::create_dir_all("./data/mapDesigns") {
+    let path = format!("./data/{}/{}.json", path, id);
+    if let Err(e) = std::fs::create_dir_all(format!("./data/{}", path)) {
         info!("Fehler beim Erstellen des Verzeichnisses: {}", e);
         return HttpResponse::InternalServerError()
             .body("Fehler beim Erstellen des Verzeichnisses");
@@ -74,17 +67,17 @@ async fn save_map_design(body: String) -> impl Responder {
         info!("Fehler beim Schreiben der Datei: {}", e);
         return HttpResponse::InternalServerError().body("Fehler beim Schreiben der Datei");
     }
-    info!("Territory design Daten gespeichert unter {}", path);
+    info!("Daten gespeichert unter {}", path);
 
     HttpResponse::Ok().json(serde_json::json!({"status":"ok"}))
 }
 
-#[get("/api/mapDesign")]
-async fn load_map_design() -> impl Responder {
-    let mut designs: Vec<Value> = Vec::new();
-    let path = "./data/mapDesigns";
+#[get("/api/data/{path}")]
+async fn load_all(request_path: web::Path<String>) -> impl Responder {
+    let path = request_path.into_inner();
+    let path = format!("./data/{}", path);
+    let mut data: Vec<Value> = Vec::new();
 
-    // Check if the directory exists
     if let Ok(entries) = std::fs::read_dir(path) {
         for entry in entries {
             if let Ok(entry) = entry {
@@ -93,7 +86,7 @@ async fn load_map_design() -> impl Responder {
                 {
                     if let Ok(content) = std::fs::read_to_string(entry.path()) {
                         if let Ok(json) = serde_json::from_str::<Value>(&content) {
-                            designs.push(json);
+                            data.push(json);
                         }
                     }
                 }
@@ -101,18 +94,19 @@ async fn load_map_design() -> impl Responder {
         }
     }
 
-    HttpResponse::Ok().json(designs)
+    HttpResponse::Ok().json(data)
 }
 
-#[delete("/api/mapDesign/{territory_number}")]
-async fn delete_map_design(territory_number: web::Path<String>) -> impl Responder {
-    let path = format!("./data/mapDesigns/{}.json", territory_number);
+#[delete("/api/data/{path}/{id}")]
+async fn delete(request_path: web::Path<(String,String)>) -> impl Responder {
+    let (path, id) = request_path.into_inner();
+    let path = format!("./data/{}/{}.json", path, id);
 
     if std::fs::remove_file(&path).is_ok() {
-        info!("Map design {} deleted", territory_number);
+        info!("data/{}/{}.json deleted", path, id);
         HttpResponse::Ok().json(serde_json::json!({"status": "ok"}))
     } else {
-        info!("Map design {} not found", territory_number);
+        info!("data/{}/{}.json not found!", path, id);
         HttpResponse::NotFound().json(serde_json::json!({"status": "not found"}))
     }
 }
@@ -139,9 +133,9 @@ async fn main() -> std::io::Result<()> {
                     .max_age(3600), // cache preflight for 1h
             )
             .service(ping)
-            .service(save_map_design)
-            .service(load_map_design)
-            .service(delete_map_design)
+            .service(save)
+            .service(load_all)
+            .service(delete)
             .service(serve_file) // http server, before ws
             .route("/ws", web::get().to(ws_index)) // leave it on last position, else CORS error arise
     })

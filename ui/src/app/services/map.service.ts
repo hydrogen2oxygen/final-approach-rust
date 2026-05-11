@@ -53,18 +53,18 @@ export class MapService {
   }
 
   loadMapDesign() {
-    return this.http.get<TerritoryMap[]>(`${environment.apiBaseUrl}/mapDesign`);
+    return this.http.get<TerritoryMap[]>(`${environment.apiBaseUrl}/mapDesigns`);
   }
 
   saveMapDesign(mapDesign:TerritoryMap) {
-    return this.http.post<{status: string}>(`${environment.apiBaseUrl}/mapDesign`, mapDesign)
+    return this.http.post<{status: string}>(`${environment.apiBaseUrl}/mapDesigns/${mapDesign.territoryNumber}`, mapDesign)
   }
 
   deleteMapDesign(territoryNumber: string) {
-    return this.http.delete<{status: string}>(`${environment.apiBaseUrl}/mapDesign/${territoryNumber}`);
+    return this.http.delete<{status: string}>(`${environment.apiBaseUrl}/mapDesigns/${territoryNumber}`);
   }
 
   loadMapDesignById(id: string, path: string) {
-    return this.http.get<TerritoryMap>(`/${path}/${id}.json`);
+    return this.http.get<TerritoryMap>(`${path}/${id}.json`);
   }
 }

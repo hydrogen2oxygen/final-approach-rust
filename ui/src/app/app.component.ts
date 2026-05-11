@@ -135,6 +135,7 @@ export class AppComponent implements OnInit {
 
 
     document.addEventListener('keydown', (event) => {
+      console.log('Key pressed:', event.key);
       if (event.key === 'Escape') {
         this.removeInteraction();
         this.modeSelected = '';
@@ -143,20 +144,35 @@ export class AppComponent implements OnInit {
         this.territoryCustomName.setValue(null);
         this.note.setValue(null);
       } else if (event.ctrlKey && event.key === 's') {
-        event.preventDefault(); // Prevent the default save action
+        event.preventDefault();
         this.saveModifications();
       } else if (event.ctrlKey && event.key === 'd') {
-        event.preventDefault(); // Prevent the default action
+        event.preventDefault();
         this.drawPolygon();
       } else if (event.ctrlKey && event.key === 'e') {
-        event.preventDefault(); // Prevent the default action
+        event.preventDefault();
         this.editFeature();
       } else if (event.key === 'Delete' && this.lastSelectedFeature) {
-        event.preventDefault(); // Prevent the default action
+        event.preventDefault();
         this.deleteFeature();
       } else if (event.ctrlKey && event.key === 'i') {
-        event.preventDefault(); // Prevent the default action
+        event.preventDefault();
         this.openDialog();
+      } else if (event.key === 'F1') {
+        event.preventDefault();
+        this.openDocumentation();
+      } else if (event.key === 'F2') {
+        event.preventDefault();
+        this.persona = Personas.DESIGNER;
+      } else if (event.key === 'F3') {
+        event.preventDefault();
+        this.persona = Personas.MANAGER;
+      } else if (event.key === 'F4') {
+        event.preventDefault();
+        this.persona = Personas.PREACHER;
+      } else if (event.key === 'F5') {
+        event.preventDefault();
+        this.persona = Personas.GROUP_LEADER;
       }
     });
 
@@ -225,7 +241,6 @@ export class AppComponent implements OnInit {
 
     if (featureLike instanceof Feature) {
       feature = featureLike; // already the real one
-      console.log("already a feature", featureLike);
     } else {
       const id = featureLike.get('id'); // from RenderFeature's properties
       feature = this.source.getFeatureById(id); // get from source
