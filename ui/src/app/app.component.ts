@@ -362,6 +362,9 @@ export class AppComponent implements OnInit {
           residentialUnits: [],
           url: ''
         }
+
+        console.log(mapDesign)
+
         // Here you would typically save the feature to your backend or service
         this.mapService.saveMapDesign(mapDesign).subscribe({
           "next": (response) => {
