@@ -10,6 +10,21 @@
 </div>
 
 <div  style="position: fixed; left: 5rem; top: 1rem; display: flex; flex-direction: row; gap: 0.5rem;">
+  @switch (persona) {
+    @case ('DESIGNER') {
+      <button class="icon-button icon-primary" title="DESIGNER"><mat-icon>design_services</mat-icon></button>
+    }
+    @case ('MANAGER') {
+      <button class="icon-button icon-primary" title="MANAGER"><mat-icon>manage_accounts</mat-icon></button>
+    }
+    @case ('PREACHER') {
+      <button class="icon-button icon-primary" title="PREACHER"><mat-icon>people</mat-icon></button>
+    }
+    @case ('GROUP_LEADER') {
+      <button class="icon-button icon-primary" title="GROUP LEADER"><mat-icon>group</mat-icon></button>
+    }
+  }
+
   @if (interaction) {
     <button class="icon-button icon-primary" (click)="removeInteraction()" title="Stop Editing (ESC)">
       <mat-icon>stop_circle</mat-icon>

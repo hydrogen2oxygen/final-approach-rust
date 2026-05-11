@@ -1,12 +1,5 @@
 import {ResidentialUnit} from "./ResidentialUnit";
 
-export class MapDesign {
-  coordinatesX:number = -472202;
-  coordinatesY:number = 7530279;
-  zoom:number = 12;
-  territoryMapList:TerritoryMap[] = [];
-}
-
 export class OsmStreet {
   coordinates:any[] = [];
   houseNumbers:string[] = [];
@@ -26,4 +19,11 @@ export class TerritoryMap {
 
   residentialUnits:ResidentialUnit[] = [];
   url:string='';
+}
+
+export enum Personas {
+  MANAGER = 'MANAGER',
+  PREACHER = 'PREACHER',
+  DESIGNER = 'DESIGNER',
+  GROUP_LEADER = 'GROUP_LEADER'
 }

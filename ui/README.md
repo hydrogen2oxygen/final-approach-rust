@@ -1,27 +1,30 @@
-# Ui
+# Final Approach UI - Rust Edition
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 18.2.15.
+## Persona
 
-## Development server
+### Designer
+The designer creates and manages map designs, including defining territories, colors, and other settings. Designs can be created locally or in the online UI.
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
+In the online UI, map designs are saved in the browser’s local storage and can be downloaded or uploaded as JSON files. This allows designers to share and collaborate on map designs.
 
-## Code scaffolding
+### Territory Manager
+The territory manager assigns territories to preachers using the local app. Once a territory is assigned, the corresponding map design is uploaded to the server as a JSON file. Preachers access it through a unique link (UUID).
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+### Preacher
+Preachers access assigned territories through a UUID link on their smartphone or tablet. The online UI loads the specific map design, allowing them to view assigned territories and related information.
 
-## Build
+### Group Leader
+Group leaders oversee preachers in their group. They can view map designs, assigned territories, and related information provided by the territory manager.
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
+Choose from https://jossef.github.io/material-design-icons-iconfont/ the icons for the following roles:
+- Designer: `design_services`
+- Territory Manager: `manage_accounts`
+- Preacher: `person`
+- Group Leader: `group`
 
-## Running unit tests
+## Online UI
+The app for the online UI is built with Angular and Material Design. It allows users to create, edit, and manage map designs and territories.
 
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
+Map designs are uploaded individually to the server, inside specific folders for each congregation. The online UI provides a user-friendly interface for managing these designs. Inside the Settings dialog, users can set the server URL and other configurations for the SFTP connection.
 
-## Running end-to-end tests
-
-Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To use this command, you need to first add a package that implements end-to-end testing capabilities.
-
-## Further help
-
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+The server is able to simulate SFTP and web server functionality during development. This allows for testing and development without needing a real server setup.

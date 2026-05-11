@@ -20,7 +20,7 @@ import {FormControl} from '@angular/forms';
 import {DragAndDrop, Draw, Modify, Select} from 'ol/interaction';
 import {GeoJSON, GPX, IGC, KML, TopoJSON, WKT} from 'ol/format';
 import {Feature} from 'ol';
-import {TerritoryMap} from './domains/MapDesign';
+import {TerritoryMap,Personas} from './domains/MapDesign';
 import {Geometry} from 'ol/geom';
 
 @Component({
@@ -59,6 +59,7 @@ export class AppComponent implements OnInit {
   modifiedFeatures: boolean = false;
   appName = 'Final Approach Rust UI';
   version = '1.0.0';
+  persona: string = Personas.PREACHER;
 
   constructor(
     private dialog: MatDialog,
@@ -69,14 +70,6 @@ export class AppComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-
-    this.pingService.ping().subscribe(response => {
-      console.log('Ping response:', response);
-    });
-    this.appService.getAppInfo().subscribe(info => {
-      this.appName = info.appName;
-      this.version = info.version;
-    });
 
     this.osmLayer = new TileLayer({
           source: new OSM({
@@ -102,10 +95,22 @@ export class AppComponent implements OnInit {
       ],
       view: this.view
     });
+    this.selectInteraction = new Select({
+      style: (featureLike) => {
+        const feature = featureLike instanceof Feature ? featureLike : this.source.getFeatureById(featureLike.get('id'));
+        feature.set('selected', true);
+        const s = this.featureFunction(featureLike); // reuse your text logic
+        // Optionally emphasize selection:
+        const stroke = s.getStroke();
+        if (stroke) stroke.setWidth((stroke.getWidth?.() ?? 3) + 2);
+        return s;
+      }
+    });
     this.map.addInteraction(this.selectInteraction);
     this.map.addInteraction(this.dragAndDropInteraction);
     this.selectInteraction.on('select', e => {
       if (e.deselected) {
+        this.lastSelectedFeature.set('selected', false);
         this.lastSelectedFeature = undefined;
         this.territoryCustomNumber.setValue(null);
         this.territoryCustomName.setValue(null);
@@ -126,8 +131,7 @@ export class AppComponent implements OnInit {
         }
       })*/
     });
-    this.loadHome()
-    this.loadMapDesign()
+
 
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
@@ -161,6 +165,31 @@ export class AppComponent implements OnInit {
         return feature;
       });
     });
+
+    // check if there is a url parameter to load a specific map design
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get('id');
+    if (id) {
+      this.persona = Personas.PREACHER
+      // The map is loaded from the URL parameter, id=<id>,folder=<folder>
+      const path = urlParams.get('path');
+      console.log('Loading map design with id:', id, 'and path:', path);
+      this.mapService.loadMapDesignById(id, path).subscribe({
+
+      });
+    } else {
+      this.persona = Personas.DESIGNER;
+      this.pingService.ping().subscribe(response => {
+        console.log('Ping response:', response);
+        this.persona = Personas.MANAGER;
+      });
+      this.appService.getAppInfo().subscribe(info => {
+        this.appName = info.appName;
+        this.version = info.version;
+      });
+      this.loadHome()
+      this.loadMapDesign()
+    }
   }
 
   public createStyle(fillColor:any = [0, 0, 0, 0.1], strokeColor:any = [255, 0, 0, 0.5], strokeWidth:number = 5, textFillColor:string = '#000', textStrokeColor:string = '#fff', textStrokeWidth:number = 3):Style {
@@ -187,13 +216,26 @@ export class AppComponent implements OnInit {
     });
   }
 
-  featureFunction(feature:FeatureLike) :Style {
+  featureFunction(featureLike:FeatureLike) :Style {
 
     let style = this.createStyle();
 
-    if (!this.showOsmData && feature.get('residentialUnit')) {
+    let feature;
+
+    if (featureLike instanceof Feature) {
+      feature = featureLike; // already the real one
+      console.log("already a feature", featureLike);
+    } else {
+      const id = featureLike.get('id'); // from RenderFeature's properties
+      feature = this.source.getFeatureById(id); // get from source
+    }
+
+    if (feature.get('selected')) {
+      console.log("Selected feature:", feature);
+      style = this.createStyle([0, 255, 0, 0.05],[0, 0, 255, 0.05],5,'#001010','#fff',2);
+    } else if (!this.showOsmData && feature.get('residentialUnit')) {
       style = new Style({});
-    } if (this.showOsmData && feature.get('residentialUnit')) {
+    } else if (this.showOsmData && feature.get('residentialUnit')) {
       style = this.createStyle([0, 255, 0, 0.05],[0, 0, 255, 0.05],5,'#00c4ff','#fff',2);
     } else if (feature.get('imported') && !this.hideImportedFeature) {
       style = this.createStyle([0, 0, 0, 0.05],[255, 0, 0, 0.25],4,'#000','#fff',3);
@@ -203,15 +245,13 @@ export class AppComponent implements OnInit {
       style = this.createStyle([0, 255, 0, 0.1],[0, 100, 0, 0.5],5,'#007700','#fff',2);
     }
 
-    if (!(feature.get('imported') || feature.get('residentialUnit'))) {
-      if (this.map.getView().getZoom() > 14 && feature.get('additionalNote')) {
-        style.getText().setText(feature.get('name') + "\n" + feature.get('additionalNote'));
-      } else
-      if (this.map.getView().getZoom() > 14) {
-        style.getText().setText(feature.get('name'));
-      } else {
-        style.getText().setText('');
-      }
+    if (this.map.getView().getZoom() > 14 && feature.get('additionalNote')) {
+      style.getText().setText(feature.get('name') + "\n" + feature.get('additionalNote'));
+    } else
+    if (this.map.getView().getZoom() > 14) {
+      style.getText().setText(feature.get('name'));
+    } else {
+      style.getText().setText('');
     }
     return style;
   }
@@ -386,24 +426,28 @@ export class AppComponent implements OnInit {
         this.source.clear();
 
         mapDesigns.forEach(mapDesign => {
-          if (mapDesign.simpleFeatureData) {
-            let geometry = this.wktFormat.readGeometry(mapDesign.simpleFeatureData);
-            let feature = new Feature({
-              geometry: geometry,
-              territoryNumber: mapDesign.territoryNumber,
-              territoryName: mapDesign.territoryName || mapDesign.territoryNumber, // if empty, it will be set to territoryNumber
-              note: mapDesign.note,
-              draft: mapDesign.draft,
-              imported: false // Set to true if the feature is imported
-            });
-            feature.set('name', feature.get('territoryName'));
-            this.source.addFeature(feature);
-          }
+          this.loadTerritoryMap(mapDesign);
         });
       },
       error: (error) => {
         console.error('Error loading map design:', error);
       }
     });
+  }
+
+  private loadTerritoryMap(mapDesign: TerritoryMap) {
+    if (mapDesign.simpleFeatureData) {
+      let geometry = this.wktFormat.readGeometry(mapDesign.simpleFeatureData);
+      let feature = new Feature({
+        geometry: geometry,
+        territoryNumber: mapDesign.territoryNumber,
+        territoryName: mapDesign.territoryName || mapDesign.territoryNumber, // if empty, it will be set to territoryNumber
+        note: mapDesign.note,
+        draft: mapDesign.draft,
+        imported: false // Set to true if the feature is imported
+      });
+      feature.set('name', feature.get('territoryName'));
+      this.source.addFeature(feature);
+    }
   }
 }

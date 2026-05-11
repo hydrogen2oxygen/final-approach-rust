@@ -64,4 +64,8 @@ export class MapService {
   deleteMapDesign(territoryNumber: string) {
     return this.http.delete<{status: string}>(`${environment.apiBaseUrl}/mapDesign/${territoryNumber}`);
   }
+
+  loadMapDesignById(id: string, path: string) {
+    return this.http.get<TerritoryMap>(`/${path}/${id}.json`);
+  }
 }
