@@ -23,6 +23,7 @@ import {Feature} from 'ol';
 import {TerritoryMap,Personas} from './domains/MapDesign';
 import {Geometry} from 'ol/geom';
 import {DocumentationComponent} from './components/documentation/documentation.component';
+import {PersonaComponent} from './components/persona/persona.component';
 
 @Component({
     selector: 'app-root',
@@ -51,10 +52,10 @@ export class AppComponent implements OnInit {
   wktFormat = new WKT();
   featureModified = false;
   modeSelected = '';
-  lastSelectedFeature: Feature | undefined = undefined;
+  lastSelectedFeature: Feature | undefined;
   //lastSelectedTerritoryMap: TerritoryMap | undefined = undefined;
   lastSavedTerritoryName: string = '';
-  importedFeature: Feature | undefined = undefined;
+  importedFeature: Feature | undefined;
   interaction: any = null;
   interactionType: string | undefined
   modifiedFeatures: boolean = false;
@@ -98,9 +99,19 @@ export class AppComponent implements OnInit {
     });
     this.selectInteraction = new Select({
       style: (featureLike) => {
-        const feature = featureLike instanceof Feature ? featureLike : this.source.getFeatureById(featureLike.get('id'));
+        let feature = featureLike instanceof Feature ? featureLike : this.source.getFeatureById(featureLike.get('id'));
         feature.set('selected', true);
-        const s = this.featureFunction(featureLike); // reuse your text logic
+        const s = this.featureFunction(featureLike);
+
+        if (featureLike instanceof Feature) {
+          feature = featureLike; // already the real one
+        } else {
+          const id = featureLike.get('id'); // from RenderFeature's properties
+          feature = this.source.getFeatureById(id); // get from source
+        }
+        console.log("Selected feature:", feature.get('territoryName'));
+        this.lastSelectedFeature = feature;
+        // reuse your text logic
         // Optionally emphasize selection:
         const stroke = s.getStroke();
         if (stroke) stroke.setWidth((stroke.getWidth?.() ?? 3) + 2);
@@ -111,8 +122,10 @@ export class AppComponent implements OnInit {
     this.map.addInteraction(this.dragAndDropInteraction);
     this.selectInteraction.on('select', e => {
       if (e.deselected) {
-        this.lastSelectedFeature.set('selected', false);
-        this.lastSelectedFeature = undefined;
+        if (this.lastSelectedFeature) {
+          this.lastSelectedFeature.set('selected', false);
+          this.lastSelectedFeature = undefined;
+        }
         this.territoryCustomNumber.setValue(null);
         this.territoryCustomName.setValue(null);
         this.note.setValue(null);
@@ -135,7 +148,6 @@ export class AppComponent implements OnInit {
 
 
     document.addEventListener('keydown', (event) => {
-      console.log('Key pressed:', event.key);
       if (event.key === 'Escape') {
         this.removeInteraction();
         this.modeSelected = '';
@@ -247,8 +259,7 @@ export class AppComponent implements OnInit {
     }
 
     if (feature.get('selected')) {
-      console.log("Selected feature:", feature);
-      style = this.createStyle([0, 255, 0, 0.05],[0, 0, 255, 0.05],5,'#001010','#fff',2);
+      style = this.createStyle([0, 255, 0, 0.05],[255, 0, 0, 0.5],5,'#001010','#fff',2);
     } else if (!this.showOsmData && feature.get('residentialUnit')) {
       style = new Style({});
     } else if (this.showOsmData && feature.get('residentialUnit')) {
@@ -258,14 +269,16 @@ export class AppComponent implements OnInit {
     } else if (feature.get('imported') && this.hideImportedFeature) {
       style = new Style({});
     } else if (feature.get('draft') == false) {
-      style = this.createStyle([0, 255, 0, 0.1],[0, 100, 0, 0.5],5,'#007700','#fff',2);
+      style = this.createStyle([0, 0, 255, 0.1],[0, 100, 0, 0.5],5,'#007700','#fff',2);
     }
 
-    if (this.map.getView().getZoom() > 14 && feature.get('additionalNote')) {
-      style.getText().setText(feature.get('name') + "\n" + feature.get('additionalNote'));
-    } else
-    if (this.map.getView().getZoom() > 14) {
-      style.getText().setText(feature.get('name'));
+
+    if (this.map.getView().getZoom() > 17) {
+      style.getText().setText(feature.get('territoryNumber') + ' ' + feature.get('territoryName') + "\n" + feature.get('additionalNote'));
+    } else if (this.map.getView().getZoom() > 16) {
+      style.getText().setText(feature.get('territoryNumber') + ' ' + feature.get('territoryName'));
+    }  else if (this.map.getView().getZoom() > 15) {
+      style.getText().setText(feature.get('territoryNumber'));
     } else {
       style.getText().setText('');
     }
@@ -292,6 +305,18 @@ export class AppComponent implements OnInit {
         version: this.version
       }
     })
+  }
+
+  openPersonaDialog(): void {
+    this.dialog.open(PersonaComponent, {
+      width: '1200px',
+      minWidth: '500px',
+      data: {
+        appName: this.appName,
+        version: this.version,
+        home: this.home
+      }
+    });
   }
 
   saveHome(): void {
@@ -338,6 +363,7 @@ export class AppComponent implements OnInit {
 
     modify.on('modifyend', evt => {
 
+      console.log("modifyend", evt);
       let modifiedFeature = evt.features.getArray()[0];
       this.territoryCustomNumber.setValue(modifiedFeature.get('territoryNumber'));
       this.territoryCustomName.setValue(modifiedFeature.get('territoryName'));
@@ -396,10 +422,17 @@ export class AppComponent implements OnInit {
     let i = 0;
     this.source.getFeatures().forEach(feature => {
 
-        console.log('Modified feature:', feature);
+        console.log('Modified feature:', feature); // FIXME remove me
+
+        if (feature.get('draft') == false) {
+          return;
+        }
+
         feature.set('draft', false);
         if (!feature.get('territoryNumber')) {
           feature.set('territoryNumber', new Date().getTime() + i);
+          feature.set('territoryName','DRAFT')
+          feature.set('additionalNote','')
         }
 
         feature.set('name', feature.get('territoryNumber'));
@@ -434,7 +467,7 @@ export class AppComponent implements OnInit {
   }
 
   deleteFeature() {
-
+console.log("delete feature", this.lastSelectedFeature)
     this.mapService.deleteMapDesign(this.lastSelectedFeature.get("territoryNumber")).subscribe({
       next: (response) => {
         this.toastr.success('Feature deleted successfully');
