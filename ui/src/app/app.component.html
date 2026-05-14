@@ -29,20 +29,31 @@
       }
       @if (lastSelectedFeature) {
         <button class="icon-button icon-danger" (click)="deleteFeature()" title="Delete Polygon">
-          <mat-icon>delete</mat-icon>
+          <mat-icon>delete</mat-icon><b>DEL</b>
         </button>
       }
+      <a class="icon-button icon-primary" href="https://www.google.com/maps/@{{getCoordinates(map.getView().getCenter()).toString().split(',')[1]}},{{getCoordinates(map.getView().getCenter()).toString().split(',')[0]}},{{map.getView().getZoom()}}z" target="googleMaps"><mat-icon>map</mat-icon><b>G</b></a>
     }
     @case ('MANAGER') {
       <button class="icon-button icon-primary" title="MANAGER" (click)="openPersonaDialog()"><mat-icon>manage_accounts</mat-icon> <span>MANAGER</span></button>
     }
     @case ('PREACHER') {
       <button class="icon-button icon-primary" title="PREACHER" (click)="openPersonaDialog()"><mat-icon>people</mat-icon> <span>PREACHER</span></button>
+      <button class="icon-button icon-primary" title="Share Link"><mat-icon>share</mat-icon></button>
     }
     @case ('GROUP_LEADER') {
       <button class="icon-button icon-primary" title="GROUP LEADER" (click)="openPersonaDialog()"><mat-icon>group</mat-icon> <span>GROUP LEADER</span></button>
     }
   }
-
-
 </div>
+
+@if (lastSelectedFeature) {
+  <div style="position: fixed; bottom: 1rem; left: 1rem; margin: 1rem; background-color: #97d0f8; border-radius: 0.5rem; padding: 0.75rem;">
+    <div class="input-group input-group-sm mb-0 align-items-center">
+      <input class="form-control" type="text" placeholder="number" [formControl]="territoryCustomNumber">
+      <input class="form-control" type="text" placeholder="territory name" [formControl]="territoryCustomName">
+      <input class="form-control" type="text" placeholder="note" [formControl]="note">
+      <button style="margin-left: 0.2rem" class="btn btn-primary" (click)="saveMapForTerritory()">Save Map for Territory</button>
+    </div>
+  </div>
+}

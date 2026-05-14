@@ -10,6 +10,7 @@ export class TerritoryMap {
   draft:boolean=true;
   territoryNumber:string='';
   territoryName:string='';
+  additionalNote:string='';
   formerTerritoryNumber:string | null = null;
   simpleFeatureData:string='';
   simpleFeatureType:string='';

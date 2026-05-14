@@ -16,7 +16,7 @@ import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import {Fill, Stroke, Style, Text} from 'ol/style';
 import {FeatureLike} from 'ol/Feature';
-import {FormControl} from '@angular/forms';
+import {FormControl, ReactiveFormsModule} from '@angular/forms';
 import {DragAndDrop, Draw, Modify, Select} from 'ol/interaction';
 import {GeoJSON, GPX, IGC, KML, TopoJSON, WKT} from 'ol/format';
 import {Feature} from 'ol';
@@ -24,10 +24,12 @@ import {TerritoryMap,Personas} from './domains/MapDesign';
 import {Geometry} from 'ol/geom';
 import {DocumentationComponent} from './components/documentation/documentation.component';
 import {PersonaComponent} from './components/persona/persona.component';
+import {Coordinate} from 'ol/coordinate';
+import {toLonLat} from 'ol/proj';
 
 @Component({
     selector: 'app-root',
-    imports: [CommonModule, MatButtonModule, MatDialogModule,  MatIconModule],
+  imports: [CommonModule, MatButtonModule, MatDialogModule, MatIconModule, ReactiveFormsModule],
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss']
 })
@@ -43,6 +45,8 @@ export class AppComponent implements OnInit {
   home: any;
   note = new FormControl('');
   territoryNumber = new FormControl('');
+  territoryName = new FormControl('');
+  territoryAdditionalNote = new FormControl('');
   territoryCustomNumber = new FormControl('');
   territoryCustomName = new FormControl('');
   selectInteraction = new Select();
@@ -109,7 +113,6 @@ export class AppComponent implements OnInit {
           const id = featureLike.get('id'); // from RenderFeature's properties
           feature = this.source.getFeatureById(id); // get from source
         }
-        console.log("Selected feature:", feature.get('territoryName'));
         this.lastSelectedFeature = feature;
         // reuse your text logic
         // Optionally emphasize selection:
@@ -137,6 +140,7 @@ export class AppComponent implements OnInit {
         this.territoryCustomNumber.setValue(this.lastSelectedFeature.get('territoryNumber'));
         this.territoryCustomName.setValue(this.lastSelectedFeature.get('territoryName'));
         this.note.setValue(this.lastSelectedFeature.get('note'));
+        console.log("Selected feature is :", this.lastSelectedFeature.get('territoryName'));
       }
 
       /*this.mapDesign.territoryMapList.forEach(t => {
@@ -164,6 +168,9 @@ export class AppComponent implements OnInit {
       } else if (event.ctrlKey && event.key === 'e') {
         event.preventDefault();
         this.editFeature();
+      } else if (event.ctrlKey && event.key === 'g') {
+        event.preventDefault();
+        this.openGoogleTab();
       } else if (event.key === 'Delete' && this.lastSelectedFeature) {
         event.preventDefault();
         this.deleteFeature();
@@ -189,11 +196,11 @@ export class AppComponent implements OnInit {
     });
 
     // Listen to click on map feature
-    this.map.on('click', (event) => {
+    /*this.map.on('click', (event) => {
       const feature = this.map?.forEachFeatureAtPixel(event.pixel, (feature) => {
         return feature;
       });
-    });
+    });*/
 
     // check if there is a url parameter to load a specific map design
     const urlParams = new URLSearchParams(window.location.search);
@@ -343,6 +350,16 @@ export class AppComponent implements OnInit {
     });
   }
 
+  getCoordinates(coordinates: number[] | undefined): Coordinate {
+    if (coordinates == undefined) return [0, 0];
+    return toLonLat(coordinates)
+  }
+
+  openGoogleTab(): void {
+    const url = `https://www.google.com/maps/@${this.getCoordinates(this.map.getView().getCenter()).toString().split(',')[1]},${this.getCoordinates(this.map.getView().getCenter()).toString().split(',')[0]},${this.map.getView().getZoom()}z`;
+    window.open(url, '_blank');
+  }
+
   drawPolygon() {
     this.territoryNumber.setValue('');
     this.addInteraction("Polygon");
@@ -422,8 +439,6 @@ export class AppComponent implements OnInit {
     let i = 0;
     this.source.getFeatures().forEach(feature => {
 
-        console.log('Modified feature:', feature); // FIXME remove me
-
         if (feature.get('draft') == false) {
           return;
         }
@@ -435,12 +450,13 @@ export class AppComponent implements OnInit {
           feature.set('additionalNote','')
         }
 
-        feature.set('name', feature.get('territoryNumber'));
+        //feature.set('name', feature.get('territoryNumber'));
         i++;
         let mapDesign: TerritoryMap = {
           draft: false,
           territoryNumber: feature.get('territoryNumber') || '',
-          territoryName: '',
+          territoryName: feature.get('territoryName') || '',
+          additionalNote: feature.get('additionalNote') || '',
           formerTerritoryNumber: null,
           simpleFeatureData: this.wktFormat.writeGeometry(feature.getGeometry() as Geometry) || '',
           simpleFeatureType: 'Polygon',
@@ -504,6 +520,7 @@ console.log("delete feature", this.lastSelectedFeature)
         geometry: geometry,
         territoryNumber: mapDesign.territoryNumber,
         territoryName: mapDesign.territoryName || mapDesign.territoryNumber, // if empty, it will be set to territoryNumber
+        additionalNote: mapDesign.additionalNote,
         note: mapDesign.note,
         draft: mapDesign.draft,
         imported: false // Set to true if the feature is imported
@@ -511,5 +528,9 @@ console.log("delete feature", this.lastSelectedFeature)
       feature.set('name', feature.get('territoryName'));
       this.source.addFeature(feature);
     }
+  }
+
+  protected saveMapForTerritory() {
+
   }
 }

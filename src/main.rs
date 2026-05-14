@@ -57,13 +57,13 @@ async fn save(request_path: web::Path<(String,String)>, body: String) -> impl Re
         }
     };
 
-    let path = format!("./data/{}/{}.json", path, id);
+    //let path = format!("./data/{}/{}.json", path, id);
     if let Err(e) = std::fs::create_dir_all(format!("./data/{}", path)) {
         info!("Fehler beim Erstellen des Verzeichnisses: {}", e);
         return HttpResponse::InternalServerError()
             .body("Fehler beim Erstellen des Verzeichnisses");
     }
-    if let Err(e) = std::fs::write(&path, body) {
+    if let Err(e) = std::fs::write(format!("./data/{}/{}.json", path, id), body) {
         info!("Fehler beim Schreiben der Datei: {}", e);
         return HttpResponse::InternalServerError().body("Fehler beim Schreiben der Datei");
     }
