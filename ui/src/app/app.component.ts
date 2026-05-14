@@ -152,7 +152,9 @@ export class AppComponent implements OnInit {
 
 
     document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') {
+      if (event.ctrlKey && event.key === 'F5') {
+        return;
+      } else if (event.key === 'Escape') {
         this.removeInteraction();
         this.modeSelected = '';
         this.lastSelectedFeature = undefined;
@@ -436,38 +438,29 @@ export class AppComponent implements OnInit {
   saveModifications() {
     this.modifiedFeatures = false;
     // list all modified features
-    let i = 0;
+    let i = 0; // if saving multiple features at once, you need a different number for each one
     this.source.getFeatures().forEach(feature => {
 
         if (feature.get('draft') == false) {
           return;
         }
 
+        if (feature.get('deleteID') == true) {
+          console.log("Deleting feature with id:", feature.get('deleteID'));
+          this.mapService.deleteMapDesign(feature.get('deleteID')).subscribe(()=>{
+            console.log("feature with id:", feature.get('deleteID'), "deleted successfully");
+          })
+        }
+
         feature.set('draft', false);
         if (!feature.get('territoryNumber')) {
-          feature.set('territoryNumber', new Date().getTime() + i);
+          feature.set('territoryNumber', new Date().getTime() + i); // additional incremental
           feature.set('territoryName','DRAFT')
           feature.set('additionalNote','')
+          i++;
         }
 
-        //feature.set('name', feature.get('territoryNumber'));
-        i++;
-        let mapDesign: TerritoryMap = {
-          draft: false,
-          territoryNumber: feature.get('territoryNumber') || '',
-          territoryName: feature.get('territoryName') || '',
-          additionalNote: feature.get('additionalNote') || '',
-          formerTerritoryNumber: null,
-          simpleFeatureData: this.wktFormat.writeGeometry(feature.getGeometry() as Geometry) || '',
-          simpleFeatureType: 'Polygon',
-          note: feature.get('note') || '',
-          lastUpdate: new Date(),
-          streetList: [],
-          residentialUnits: [],
-          url: ''
-        }
-
-        console.log(mapDesign)
+        let mapDesign = this.generateMapDesignFromFeature(feature);
 
         // Here you would typically save the feature to your backend or service
         this.mapService.saveMapDesign(mapDesign).subscribe({
@@ -482,8 +475,25 @@ export class AppComponent implements OnInit {
     });
   }
 
+  private generateMapDesignFromFeature(feature:Feature<Geometry>) {
+    let mapDesign: TerritoryMap = {
+      draft: false,
+      territoryNumber: feature.get('territoryNumber') || '',
+      territoryName: feature.get('territoryName') || '',
+      additionalNote: feature.get('additionalNote') || '',
+      formerTerritoryNumber: null,
+      simpleFeatureData: this.wktFormat.writeGeometry(feature.getGeometry() as Geometry) || '',
+      simpleFeatureType: 'Polygon',
+      note: feature.get('note') || '',
+      lastUpdate: new Date(),
+      streetList: [],
+      residentialUnits: [],
+      url: ''
+    }
+    return mapDesign;
+  }
+
   deleteFeature() {
-console.log("delete feature", this.lastSelectedFeature)
     this.mapService.deleteMapDesign(this.lastSelectedFeature.get("territoryNumber")).subscribe({
       next: (response) => {
         this.toastr.success('Feature deleted successfully');
@@ -531,6 +541,20 @@ console.log("delete feature", this.lastSelectedFeature)
   }
 
   protected saveMapForTerritory() {
+    let mapDesign:TerritoryMap = this.generateMapDesignFromFeature(this.lastSelectedFeature);
+    mapDesign.draft = false;
 
+    mapDesign.territoryNumber = this.territoryCustomNumber.value;
+    mapDesign.territoryName = this.territoryCustomName.value;
+    mapDesign.additionalNote = this.note.value;
+    // ensure that the feature is deleted from the backend, if it exists, and it will be replaced by the new one
+    this.lastSelectedFeature.set('deleteID', this.lastSelectedFeature.get('territoryNumber'));
+    // then a new real number is assigned to the feature
+    this.lastSelectedFeature.set('territoryNumber', mapDesign.territoryNumber);
+    this.lastSelectedFeature.set('territoryName', mapDesign.territoryName);
+    this.lastSelectedFeature.set('additionalNote', mapDesign.additionalNote);
+    this.lastSelectedFeature.set('draft', true);
+
+    console.log(mapDesign)
   }
 }
