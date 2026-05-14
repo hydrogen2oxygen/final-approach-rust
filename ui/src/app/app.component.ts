@@ -441,37 +441,36 @@ export class AppComponent implements OnInit {
     let i = 0; // if saving multiple features at once, you need a different number for each one
     this.source.getFeatures().forEach(feature => {
 
-        if (feature.get('draft') == false) {
-          return;
-        }
-
-        if (feature.get('deleteID') == true) {
-          console.log("Deleting feature with id:", feature.get('deleteID'));
-          this.mapService.deleteMapDesign(feature.get('deleteID')).subscribe(()=>{
-            console.log("feature with id:", feature.get('deleteID'), "deleted successfully");
-          })
-        }
-
-        feature.set('draft', false);
-        if (!feature.get('territoryNumber')) {
-          feature.set('territoryNumber', new Date().getTime() + i); // additional incremental
-          feature.set('territoryName','DRAFT')
-          feature.set('additionalNote','')
-          i++;
-        }
-
-        let mapDesign = this.generateMapDesignFromFeature(feature);
-
-        // Here you would typically save the feature to your backend or service
-        this.mapService.saveMapDesign(mapDesign).subscribe({
-          "next": (response) => {
-            this.toastr.success('Map Design saved successfully');
-          },
-          "error": (error) => {
-            console.log(error)
-            this.toastr.error('Error saving feature:', error);
-          }
+      if (feature.get('deleteID')) {
+        this.mapService.deleteMapDesign(feature.get('deleteID')).subscribe(() => {
+          this.toastr.warning("mapDesign with id: " + feature.get('deleteID')  +" deleted successfully");
         })
+      }
+
+      if (feature.get('draft') == false) {
+        return;
+      }
+
+      feature.set('draft', false);
+      if (!feature.get('territoryNumber')) {
+        feature.set('territoryNumber', new Date().getTime() + i); // additional incremental
+        feature.set('territoryName', 'DRAFT')
+        feature.set('additionalNote', '')
+        i++;
+      }
+
+      let mapDesign = this.generateMapDesignFromFeature(feature);
+
+      // Here you would typically save the feature to your backend or service
+      this.mapService.saveMapDesign(mapDesign).subscribe({
+        "next": (response) => {
+          this.toastr.success(`Map Design with number ${mapDesign.territoryNumber} saved successfully`);
+        },
+        "error": (error) => {
+          console.log(error)
+          this.toastr.error('Error saving feature:', error);
+        }
+      })
     });
   }
 
