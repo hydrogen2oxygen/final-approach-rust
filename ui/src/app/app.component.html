@@ -32,7 +32,24 @@
           <mat-icon>delete</mat-icon><b>DEL</b>
         </button>
       }
+
       <a class="icon-button icon-primary" href="https://www.google.com/maps/@{{getCoordinates(map.getView().getCenter()).toString().split(',')[1]}},{{getCoordinates(map.getView().getCenter()).toString().split(',')[0]}},{{map.getView().getZoom()}}z" target="googleMaps"><mat-icon>map</mat-icon><b>G</b></a>
+
+      <input
+        #kmlFileInput
+        type="file"
+        accept=".kml,application/vnd.google-earth.kml+xml"
+        style="display: none"
+        (change)="onKmlFileSelected($event)"
+      >
+
+      <button
+        class="icon-button icon-primary"
+        title="Import KML"
+        (click)="kmlFileInput.click()">
+        <mat-icon>upload_file</mat-icon><b>KML</b>
+      </button>
+
     }
     @case ('MANAGER') {
       <button class="icon-button icon-primary" title="MANAGER" (click)="openPersonaDialog()"><mat-icon>manage_accounts</mat-icon> <span>MANAGER</span></button>

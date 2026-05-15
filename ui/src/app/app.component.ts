@@ -26,6 +26,7 @@ import {DocumentationComponent} from './components/documentation/documentation.c
 import {PersonaComponent} from './components/persona/persona.component';
 import {Coordinate} from 'ol/coordinate';
 import {toLonLat} from 'ol/proj';
+import {createEmpty, extend, isEmpty} from 'ol/extent';
 
 @Component({
     selector: 'app-root',
@@ -41,7 +42,7 @@ export class AppComponent implements OnInit {
   vectorLayer:VectorLayer<any>=new VectorLayer<any>();
   source = new VectorSource();
   showOsmData:boolean = false;
-  hideImportedFeature:boolean = true;
+  hideImportedFeature:boolean = false;
   home: any;
   note = new FormControl('');
   territoryNumber = new FormControl('');
@@ -50,9 +51,10 @@ export class AppComponent implements OnInit {
   territoryCustomNumber = new FormControl('');
   territoryCustomName = new FormControl('');
   selectInteraction = new Select();
-  dragAndDropInteraction = new DragAndDrop({
+  /*dragAndDropInteraction = new DragAndDrop({
     formatConstructors: [GPX as any, GeoJSON as any, IGC as any, KML as any, TopoJSON as any],
-  });
+  });*/
+  dragAndDropInteraction: DragAndDrop | undefined;
   wktFormat = new WKT();
   featureModified = false;
   modeSelected = '';
@@ -122,7 +124,8 @@ export class AppComponent implements OnInit {
       }
     });
     this.map.addInteraction(this.selectInteraction);
-    this.map.addInteraction(this.dragAndDropInteraction);
+    //this.map.addInteraction(this.dragAndDropInteraction);
+    this.initKmlDragAndDrop();
     this.selectInteraction.on('select', e => {
       if (e.deselected) {
         if (this.lastSelectedFeature) {
@@ -555,5 +558,130 @@ export class AppComponent implements OnInit {
     this.lastSelectedFeature.set('draft', true);
 
     console.log(mapDesign)
+  }
+
+  private initKmlDragAndDrop(): void {
+    this.dragAndDropInteraction = new DragAndDrop({
+      formatConstructors: [KML as any],
+      projection: this.view.getProjection()
+    });
+
+    this.dragAndDropInteraction.on('addfeatures', (event: any) => {
+      const features = event.features || [];
+
+      if (!features.length) {
+        this.toastr.warning('No features found in dropped KML file');
+        return;
+      }
+
+      this.addImportedKmlFeatures(features, 'Dropped KML');
+    });
+
+    this.map?.addInteraction(this.dragAndDropInteraction);
+  }
+
+  onKmlFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    this.importKmlFile(file);
+
+    // wichtig: erlaubt danach dieselbe Datei erneut auszuwählen
+    input.value = '';
+  }
+
+  private importKmlFile(file: File): void {
+    if (!file.name.toLowerCase().endsWith('.kml')) {
+      this.toastr.error('Please select a .kml file');
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const kmlText = String(reader.result || '');
+      this.importKmlText(kmlText, file.name);
+    };
+
+    reader.onerror = () => {
+      this.toastr.error('Could not read KML file');
+    };
+
+    reader.readAsText(file);
+  }
+
+  private importKmlText(kmlText: string, fileName: string): void {
+    try {
+      const kmlFormat = new KML({
+        extractStyles: false
+      });
+
+      const features = kmlFormat.readFeatures(kmlText, {
+        dataProjection: 'EPSG:4326',
+        featureProjection: this.view.getProjection()
+      }) as Feature<Geometry>[];
+
+      if (!features.length) {
+        this.toastr.warning('No features found in KML file');
+        return;
+      }
+
+      this.addImportedKmlFeatures(features, fileName);
+    } catch (error) {
+      console.error('KML import failed:', error);
+      this.toastr.error('KML import failed');
+    }
+  }
+
+  private addImportedKmlFeatures(features: Feature<Geometry>[], fileName: string): void {
+    const extent = createEmpty();
+
+    features.forEach((feature, index) => {
+      const kmlName = feature.get('name');
+
+      feature.set('imported', true);
+      feature.set('draft', true);
+
+      if (!feature.get('territoryName')) {
+        feature.set('territoryName', kmlName || fileName.replace('.kml', ''));
+      }
+
+      if (!feature.get('territoryNumber')) {
+        feature.set('territoryNumber', '');
+      }
+
+      if (!feature.get('additionalNote')) {
+        feature.set('additionalNote', 'Imported from KML');
+      }
+
+      if (!feature.get('note')) {
+        feature.set('note', '');
+      }
+
+      feature.set('kmlFileName', fileName);
+      feature.set('kmlImportIndex', index);
+
+      const geometry = feature.getGeometry();
+      if (geometry) {
+        extend(extent, geometry.getExtent());
+      }
+    });
+
+    this.source.addFeatures(features);
+    this.modifiedFeatures = true;
+
+    if (!isEmpty(extent)) {
+      this.map?.getView().fit(extent, {
+        padding: [80, 80, 80, 80],
+        maxZoom: 17,
+        duration: 500
+      });
+    }
+
+    this.toastr.success(`${features.length} KML feature(s) imported`);
   }
 }
