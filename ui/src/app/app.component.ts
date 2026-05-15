@@ -27,6 +27,7 @@ import {PersonaComponent} from './components/persona/persona.component';
 import {Coordinate} from 'ol/coordinate';
 import {toLonLat} from 'ol/proj';
 import {createEmpty, extend, isEmpty} from 'ol/extent';
+import {Territory} from './domains/Congregation';
 
 @Component({
     selector: 'app-root',
@@ -47,27 +48,29 @@ export class AppComponent implements OnInit {
   note = new FormControl('');
   territoryNumber = new FormControl('');
   territoryName = new FormControl('');
-  territoryAdditionalNote = new FormControl('');
   territoryCustomNumber = new FormControl('');
   territoryCustomName = new FormControl('');
+
+  territoriesSorted: Territory[] = [];
+  territoriesNoContacts:Territory[] = [];
+  territoriesOlder8Months:Territory[] = [];
+  territoriesOlder4Months:Territory[] = [];
+  territoriesAssigned:Territory[] = [];
+  territoriesToBeAssigned:Territory[] = [];
+  territoriesArchived:Territory[] = [];
+
   selectInteraction = new Select();
-  /*dragAndDropInteraction = new DragAndDrop({
-    formatConstructors: [GPX as any, GeoJSON as any, IGC as any, KML as any, TopoJSON as any],
-  });*/
   dragAndDropInteraction: DragAndDrop | undefined;
   wktFormat = new WKT();
-  featureModified = false;
   modeSelected = '';
   lastSelectedFeature: Feature | undefined;
-  //lastSelectedTerritoryMap: TerritoryMap | undefined = undefined;
   lastSavedTerritoryName: string = '';
-  importedFeature: Feature | undefined;
   interaction: any = null;
   interactionType: string | undefined
   modifiedFeatures: boolean = false;
   appName = 'Final Approach Rust UI';
   version = '1.0.0';
-  persona: string = Personas.PREACHER;
+  persona: string = localStorage.getItem('persona') || Personas.DESIGNER;
 
   constructor(
     private dialog: MatDialog,
@@ -124,7 +127,6 @@ export class AppComponent implements OnInit {
       }
     });
     this.map.addInteraction(this.selectInteraction);
-    //this.map.addInteraction(this.dragAndDropInteraction);
     this.initKmlDragAndDrop();
     this.selectInteraction.on('select', e => {
       if (e.deselected) {
@@ -135,7 +137,6 @@ export class AppComponent implements OnInit {
         this.territoryCustomNumber.setValue(null);
         this.territoryCustomName.setValue(null);
         this.note.setValue(null);
-        //return;
       }
 
       this.lastSelectedFeature = e.selected[0];
@@ -146,11 +147,7 @@ export class AppComponent implements OnInit {
         console.log("Selected feature is :", this.lastSelectedFeature.get('territoryName'));
       }
 
-      /*this.mapDesign.territoryMapList.forEach(t => {
-        if (t.territoryNumber == this.territoryCustomNumber.value) {
-          this.lastSelectedTerritoryMap = t;
-        }
-      })*/
+      this.reloadCongregationData();
     });
 
 
@@ -160,6 +157,8 @@ export class AppComponent implements OnInit {
       } else if (event.key === 'Escape') {
         this.removeInteraction();
         this.modeSelected = '';
+        this.lastSelectedFeature.set('selected', false);
+        this.lastSelectedFeature.setStyle(this.featureFunction(this.lastSelectedFeature))
         this.lastSelectedFeature = undefined;
         this.territoryCustomNumber.setValue(null);
         this.territoryCustomName.setValue(null);
@@ -167,16 +166,16 @@ export class AppComponent implements OnInit {
       } else if (event.ctrlKey && event.key === 's') {
         event.preventDefault();
         this.saveModifications();
-      } else if (event.ctrlKey && event.key === 'd') {
+      } else if (this.persona == Personas.DESIGNER && event.ctrlKey && event.key === 'd') {
         event.preventDefault();
         this.drawPolygon();
-      } else if (event.ctrlKey && event.key === 'e') {
+      } else if (this.persona == Personas.DESIGNER && event.ctrlKey && event.key === 'e') {
         event.preventDefault();
         this.editFeature();
       } else if (event.ctrlKey && event.key === 'g') {
         event.preventDefault();
         this.openGoogleTab();
-      } else if (event.key === 'Delete' && this.lastSelectedFeature) {
+      } else if (this.persona == Personas.DESIGNER && event.key === 'Delete' && this.lastSelectedFeature) {
         event.preventDefault();
         this.deleteFeature();
       } else if (event.ctrlKey && event.key === 'i') {
@@ -198,14 +197,9 @@ export class AppComponent implements OnInit {
         event.preventDefault();
         this.persona = Personas.GROUP_LEADER;
       }
-    });
 
-    // Listen to click on map feature
-    /*this.map.on('click', (event) => {
-      const feature = this.map?.forEachFeatureAtPixel(event.pixel, (feature) => {
-        return feature;
-      });
-    });*/
+      localStorage.setItem('persona', this.persona);
+    });
 
     // check if there is a url parameter to load a specific map design
     const urlParams = new URLSearchParams(window.location.search);
@@ -215,11 +209,10 @@ export class AppComponent implements OnInit {
       // The map is loaded from the URL parameter, id=<id>,folder=<folder>
       const path = urlParams.get('path');
       console.log('Loading map design with id:', id, 'and path:', path);
-      this.mapService.loadMapDesignById(id, path).subscribe({
-
+      this.mapService.loadMapDesignById(id, path).subscribe( (mapDesign:TerritoryMap) => {
+        this.loadTerritoryMap(mapDesign);
       });
     } else {
-      this.persona = Personas.DESIGNER;
       this.pingService.ping().subscribe(response => {
         console.log('Ping response:', response);
         this.persona = Personas.MANAGER;
@@ -387,6 +380,7 @@ export class AppComponent implements OnInit {
 
       console.log("modifyend", evt);
       let modifiedFeature = evt.features.getArray()[0];
+      modifiedFeature.set('draft', true);
       this.territoryCustomNumber.setValue(modifiedFeature.get('territoryNumber'));
       this.territoryCustomName.setValue(modifiedFeature.get('territoryName'));
       this.note.setValue(modifiedFeature.get('note'));
@@ -402,6 +396,7 @@ export class AppComponent implements OnInit {
         }
       })*/
 
+      this.modifiedFeatures = true;
     })
 
     modify.on('change', evt => {
@@ -450,6 +445,8 @@ export class AppComponent implements OnInit {
         })
       }
 
+      console.log("saving feature", feature.get('draft'));
+
       if (feature.get('draft') == false) {
         return;
       }
@@ -496,6 +493,12 @@ export class AppComponent implements OnInit {
   }
 
   deleteFeature() {
+    if (this.territoriesSorted.find(t => t.number == this.lastSelectedFeature.get("territoryNumber"))) {
+      console.log("territory is in use")
+      if (confirm("This territory is currently in use. Are you sure you want to delete it?")) return;
+      console.log("territory is not in use")
+    }
+
     this.mapService.deleteMapDesign(this.lastSelectedFeature.get("territoryNumber")).subscribe({
       next: (response) => {
         this.toastr.success('Feature deleted successfully');
@@ -504,7 +507,9 @@ export class AppComponent implements OnInit {
       },
       error: (error) => {
         console.error('Error deleting feature:', error);
-        this.toastr.error('Error deleting feature: ' + error.message);
+        //this.toastr.error('Error deleting feature: ' + error.message);
+        this.source.removeFeature(this.lastSelectedFeature)
+        this.lastSelectedFeature = undefined;
       }
     })
 
@@ -556,6 +561,14 @@ export class AppComponent implements OnInit {
     this.lastSelectedFeature.set('territoryName', mapDesign.territoryName);
     this.lastSelectedFeature.set('additionalNote', mapDesign.additionalNote);
     this.lastSelectedFeature.set('draft', true);
+
+    let territory = new Territory();
+    territory.number = mapDesign.territoryNumber;
+    territory.name = mapDesign.territoryName;
+
+    this.mapService.saveTerritory(territory).subscribe(()=>{
+      this.toastr.success('Territory saved successfully');
+    })
 
     console.log(mapDesign)
   }
@@ -683,5 +696,39 @@ export class AppComponent implements OnInit {
     }
 
     this.toastr.success(`${features.length} KML feature(s) imported`);
+  }
+
+  reloadCongregationData():void {
+
+    const now:Date = new Date();
+    const eightMonthsAgo:Date = new Date(now.getFullYear(), now.getMonth() - 8, now.getDate());
+    const fourMonthsAgo:Date = new Date(now.getFullYear(), now.getMonth() - 4, now.getDate());
+
+    this.mapService.loadTerritories().subscribe(territories => {
+      territories.forEach((t:Territory) => {
+        if (t.registryEntryList.length == 0) {
+          this.territoriesToBeAssigned.push(t);
+        } else if (t.noContacts && !t.archive){
+          this.territoriesNoContacts.push(t);
+        } else if (t.archive) {
+          this.territoriesArchived.push(t);
+        } else if (t.registryEntryList[t.registryEntryList.length - 1].preacher.name == 'Congregation') {
+          this.territoriesToBeAssigned.push(t);
+        } else if (new Date(t.date) < eightMonthsAgo) {
+          this.territoriesOlder8Months.push(t);
+        } else if (new Date(t.date) < fourMonthsAgo) {
+          this.territoriesOlder4Months.push(t);
+        } else {
+          this.territoriesAssigned.push(t);
+        }
+      });
+
+      this.territoriesNoContacts = this.territoriesNoContacts.sort((a, b) => (new Date(a.date) > new Date(b.date) ? 1 : -1));
+      this.territoriesArchived = this.territoriesArchived.sort((a, b) => (new Date(a.date) > new Date(b.date) ? 1 : -1));
+      this.territoriesToBeAssigned = this.territoriesToBeAssigned.sort((a, b) => (new Date(a.date) > new Date(b.date) ? 1 : -1));
+      this.territoriesOlder4Months = this.territoriesOlder4Months.sort((a, b) => (new Date(a.date) > new Date(b.date) ? 1 : -1));
+      this.territoriesOlder8Months = this.territoriesOlder8Months.sort((a, b) => (new Date(a.date) > new Date(b.date) ? 1 : -1));
+      this.territoriesSorted = this.territoriesSorted.sort((a, b) => (a.number > b.number ? 1 : -1));
+    })
   }
 }

@@ -64,7 +64,7 @@
   }
 </div>
 
-@if (lastSelectedFeature) {
+@if (lastSelectedFeature && persona == 'DESIGNER') {
   <div style="position: fixed; bottom: 1rem; left: 1rem; margin: 1rem; background-color: #97d0f8; border-radius: 0.5rem; padding: 0.75rem;">
     <div class="input-group input-group-sm mb-0 align-items-center">
       <input class="form-control" type="text" placeholder="number" [formControl]="territoryCustomNumber">
@@ -72,5 +72,11 @@
       <input class="form-control" type="text" placeholder="note" [formControl]="note">
       <button style="margin-left: 0.2rem" class="btn btn-primary" (click)="saveMapForTerritory()">Save Map for Territory</button>
     </div>
+  </div>
+}
+
+@if (lastSelectedFeature && persona == 'MANAGER') {
+  <div style="position: fixed; top: 1rem; right: 1rem; margin: 1rem; background-color: #97d0f8; border-radius: 0.5rem; padding: 0.75rem;">
+    assign to preacher ...
   </div>
 }

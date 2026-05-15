@@ -3,7 +3,7 @@ mod websocket;
 use actix_cors::Cors;
 use actix_web::http::header;
 use actix_web::{delete, get, post, web, App, HttpResponse, HttpServer, Responder};
-use log::info;
+use log::{error, info, warn};
 use mime_guess::from_path;
 use rust_embed::RustEmbed;
 use serde_json::Value;
@@ -52,19 +52,19 @@ async fn save(request_path: web::Path<(String,String)>, body: String) -> impl Re
     match serde_json::from_str::<serde_json::Value>(&body) {
         Ok(j) => j,
         Err(e) => {
-            info!("Ungültiges JSON: {}", e);
+            error!("Ungültiges JSON: {}", e);
             return HttpResponse::BadRequest().body("Ungültiges JSON");
         }
     };
 
     //let path = format!("./data/{}/{}.json", path, id);
     if let Err(e) = std::fs::create_dir_all(format!("./data/{}", path)) {
-        info!("Fehler beim Erstellen des Verzeichnisses: {}", e);
+        error!("Fehler beim Erstellen des Verzeichnisses: {}", e);
         return HttpResponse::InternalServerError()
             .body("Fehler beim Erstellen des Verzeichnisses");
     }
     if let Err(e) = std::fs::write(format!("./data/{}/{}.json", path, id), body) {
-        info!("Fehler beim Schreiben der Datei: {}", e);
+        error!("Fehler beim Schreiben der Datei: {}", e);
         return HttpResponse::InternalServerError().body("Fehler beim Schreiben der Datei");
     }
     info!("Daten gespeichert unter {}", path);
@@ -106,7 +106,7 @@ async fn delete(request_path: web::Path<(String,String)>) -> impl Responder {
         info!("data/{}/{}.json deleted", path, id);
         HttpResponse::Ok().json(serde_json::json!({"status": "ok"}))
     } else {
-        info!("data/{}/{}.json not found!", path, id);
+        warn!("data/{}/{}.json not found!", path, id);
         HttpResponse::NotFound().json(serde_json::json!({"status": "not found"}))
     }
 }

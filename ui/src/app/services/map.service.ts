@@ -3,6 +3,7 @@ import { environment } from '../../environments/environment';
 import { Observable } from 'rxjs';
 import {HttpClient} from '@angular/common/http';
 import {TerritoryMap} from '../domains/MapDesign';
+import {Territory} from '../domains/Congregation';
 
 @Injectable({
   providedIn: 'root'
@@ -52,6 +53,7 @@ export class MapService {
     }
   }
 
+  // MAP DESIGN
   loadMapDesign() {
     return this.http.get<TerritoryMap[]>(`${environment.apiBaseUrl}/mapDesigns`);
   }
@@ -64,7 +66,21 @@ export class MapService {
     return this.http.delete<{status: string}>(`${environment.apiBaseUrl}/mapDesigns/${territoryNumber}`);
   }
 
-  loadMapDesignById(id: string, path: string) {
-    return this.http.get<TerritoryMap>(`${path}/${id}.json`);
+  loadMapDesignById(territoryNumber: string, path:string) {
+    return this.http.get<TerritoryMap>(`${path}/${territoryNumber}`);
   }
+
+  // TERRITORY
+  loadTerritories() {
+    return this.http.get<Territory[]>(`${environment.apiBaseUrl}/territories`);
+  }
+
+  saveTerritory(territory:Territory) {
+    return this.http.post<{status: string}>(`${environment.apiBaseUrl}/territories/${territory.number}`, territory)
+  }
+
+  deleteTerritory(territoryNumber: string) {
+    return this.http.delete<{status: string}>(`${environment.apiBaseUrl}/territories/${territoryNumber}`);
+  }
+
 }
