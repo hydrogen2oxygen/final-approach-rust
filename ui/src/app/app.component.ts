@@ -493,10 +493,13 @@ export class AppComponent implements OnInit {
   }
 
   deleteFeature() {
-    if (this.territoriesSorted.find(t => t.number == this.lastSelectedFeature.get("territoryNumber"))) {
-      console.log("territory is in use")
-      if (confirm("This territory is currently in use. Are you sure you want to delete it?")) return;
-      console.log("territory is not in use")
+    this.territoriesSorted.forEach(t => {console.log(t.number, t.name)})
+    let territory = this.territoriesSorted.find(t => t.number == this.lastSelectedFeature.get("territoryNumber"))
+    if (territory) {
+      if (!confirm("This territory is currently in use. Are you sure you want to delete it?")) return;
+      this.mapService.deleteTerritory(territory.number).subscribe(() => {
+        console.log("territory deleted")
+      })
     }
 
     this.mapService.deleteMapDesign(this.lastSelectedFeature.get("territoryNumber")).subscribe({
@@ -705,6 +708,9 @@ export class AppComponent implements OnInit {
     const fourMonthsAgo:Date = new Date(now.getFullYear(), now.getMonth() - 4, now.getDate());
 
     this.mapService.loadTerritories().subscribe(territories => {
+
+      this.territoriesSorted = territories.sort((a, b) => (a.number > b.number ? 1 : -1));
+
       territories.forEach((t:Territory) => {
         if (t.registryEntryList.length == 0) {
           this.territoriesToBeAssigned.push(t);
@@ -728,7 +734,6 @@ export class AppComponent implements OnInit {
       this.territoriesToBeAssigned = this.territoriesToBeAssigned.sort((a, b) => (new Date(a.date) > new Date(b.date) ? 1 : -1));
       this.territoriesOlder4Months = this.territoriesOlder4Months.sort((a, b) => (new Date(a.date) > new Date(b.date) ? 1 : -1));
       this.territoriesOlder8Months = this.territoriesOlder8Months.sort((a, b) => (new Date(a.date) > new Date(b.date) ? 1 : -1));
-      this.territoriesSorted = this.territoriesSorted.sort((a, b) => (a.number > b.number ? 1 : -1));
     })
   }
 }
