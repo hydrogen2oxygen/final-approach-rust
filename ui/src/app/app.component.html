@@ -78,5 +78,15 @@
 @if (lastSelectedFeature && persona == 'MANAGER') {
   <div style="position: fixed; top: 1rem; right: 1rem; margin: 1rem; background-color: #97d0f8; border-radius: 0.5rem; padding: 0.75rem;">
     assign to preacher ...
+
+    <button class="btn btn-primary btn-sm" style="margin-left: 0.5rem;" (click)="exportSelectedFeatureAsPdf()">
+      PDF
+    </button>
+
+    <button class="btn btn-primary btn-sm"
+            style="margin-left: 0.5rem"
+            (click)="exportSelectedFeaturesAsGridPdf()">
+      PDF 4x
+    </button>
   </div>
 }

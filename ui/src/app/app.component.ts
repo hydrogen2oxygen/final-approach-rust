@@ -28,6 +28,9 @@ import {Coordinate} from 'ol/coordinate';
 import {toLonLat} from 'ol/proj';
 import {createEmpty, extend, isEmpty} from 'ol/extent';
 import {Territory} from './domains/Congregation';
+import { jsPDF } from 'jspdf';
+import { buffer } from 'ol/extent';
+import { click, shiftKeyOnly } from 'ol/events/condition';
 
 @Component({
     selector: 'app-root',
@@ -84,6 +87,7 @@ export class AppComponent implements OnInit {
 
     this.osmLayer = new TileLayer({
           source: new OSM({
+            crossOrigin: 'anonymous',
             attributions: []
           })
         });
@@ -107,6 +111,9 @@ export class AppComponent implements OnInit {
       view: this.view
     });
     this.selectInteraction = new Select({
+      multi: true,
+      condition: click,
+      toggleCondition: shiftKeyOnly,
       style: (featureLike) => {
         let feature = featureLike instanceof Feature ? featureLike : this.source.getFeatureById(featureLike.get('id'));
         feature.set('selected', true);
@@ -261,6 +268,10 @@ export class AppComponent implements OnInit {
     } else {
       const id = featureLike.get('id'); // from RenderFeature's properties
       feature = this.source.getFeatureById(id); // get from source
+    }
+
+    if (feature.get('printHidden')) {
+      return new Style({});
     }
 
     if (feature.get('selected')) {
@@ -735,5 +746,391 @@ export class AppComponent implements OnInit {
       this.territoriesOlder4Months = this.territoriesOlder4Months.sort((a, b) => (new Date(a.date) > new Date(b.date) ? 1 : -1));
       this.territoriesOlder8Months = this.territoriesOlder8Months.sort((a, b) => (new Date(a.date) > new Date(b.date) ? 1 : -1));
     })
+  }
+
+  exportSelectedFeatureAsPdf(): void {
+    if (!this.map || !this.lastSelectedFeature) {
+      this.toastr.warning('No territory selected');
+      return;
+    }
+
+    const selectedFeature = this.lastSelectedFeature;
+    const geometry = selectedFeature.getGeometry();
+
+    if (!geometry) {
+      this.toastr.warning('Selected territory has no geometry');
+      return;
+    }
+
+    const oldCenter = this.map.getView().getCenter();
+    const oldZoom = this.map.getView().getZoom();
+
+    // @ts-ignore
+    const oldPrintHiddenValues = new Map<Feature<Geometry>, any>();
+    // @ts-ignore
+    const oldSelectedValues = new Map<Feature<Geometry>, any>();
+
+    this.source.getFeatures().forEach(feature => {
+      // @ts-ignore
+      oldPrintHiddenValues.set(feature as Feature<Geometry>, feature.get('printHidden'));
+      // @ts-ignore
+      oldSelectedValues.set(feature as Feature<Geometry>, feature.get('selected'));
+
+      if (feature !== selectedFeature) {
+        feature.set('printHidden', true);
+        feature.set('selected', false);
+      }
+    });
+
+    selectedFeature.set('printHidden', false);
+    selectedFeature.set('selected', true);
+
+    this.vectorLayer.changed();
+
+    const extent = geometry.getExtent();
+    const printExtent = buffer(extent, 20);
+
+    this.map.getView().fit(printExtent, {
+      padding: [25, 25, 25, 25],
+      maxZoom: 21,
+      duration: 0
+    });
+
+    this.map.once('rendercomplete', () => {
+      try {
+        const mapCanvas = document.createElement('canvas');
+        const size = this.map!.getSize();
+
+        if (!size) {
+          this.toastr.error('Could not determine map size');
+          return;
+        }
+
+        mapCanvas.width = size[0];
+        mapCanvas.height = size[1];
+
+        const mapContext = mapCanvas.getContext('2d');
+
+        if (!mapContext) {
+          this.toastr.error('Could not create canvas context');
+          return;
+        }
+
+        const canvases = this.map!.getViewport().querySelectorAll<HTMLCanvasElement>(
+          '.ol-layer canvas, canvas.ol-layer'
+        );
+
+        canvases.forEach(canvas => {
+          if (canvas.width === 0 || canvas.height === 0) {
+            return;
+          }
+
+          const opacity = canvas.parentElement?.style.opacity || canvas.style.opacity;
+          mapContext.globalAlpha = opacity === '' ? 1 : Number(opacity);
+
+          const transform = canvas.style.transform;
+
+          if (transform) {
+            const matrix = transform
+              .match(/^matrix\(([^\)]*)\)$/)?.[1]
+              .split(',')
+              .map(Number);
+
+            if (matrix && matrix.length === 6) {
+              mapContext.setTransform(
+                matrix[0],
+                matrix[1],
+                matrix[2],
+                matrix[3],
+                matrix[4],
+                matrix[5]
+              );
+            }
+          } else {
+            mapContext.setTransform(1, 0, 0, 1, 0, 0);
+          }
+
+          mapContext.drawImage(canvas, 0, 0);
+        });
+
+        mapContext.setTransform(1, 0, 0, 1, 0, 0);
+        mapContext.globalAlpha = 1;
+
+        const image = mapCanvas.toDataURL('image/png');
+
+        const pdf = new jsPDF({
+          orientation: 'landscape',
+          unit: 'mm',
+          format: 'a4'
+        });
+
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+
+        const margin = 8;
+        const titleHeight = 10;
+
+        const territoryNumber = selectedFeature.get('territoryNumber') || '';
+        const territoryName = selectedFeature.get('territoryName') || '';
+        const title = `${territoryNumber} ${territoryName}`.trim() || 'Gebietskarte';
+
+        pdf.setFontSize(14);
+        pdf.text(title, margin, 10);
+
+        pdf.addImage(
+          image,
+          'PNG',
+          margin,
+          titleHeight + margin,
+          pageWidth - margin * 2,
+          pageHeight - titleHeight - margin * 2
+        );
+
+        const filename = `${title.replace(/[^\wäöüÄÖÜß-]+/g, '_')}.pdf`;
+        pdf.save(filename);
+
+      } finally {
+        this.source.getFeatures().forEach(feature => {
+          // @ts-ignore
+          feature.set('printHidden', oldPrintHiddenValues.get(feature as Feature<Geometry>));
+          // @ts-ignore
+          feature.set('selected', oldSelectedValues.get(feature as Feature<Geometry>));
+        });
+
+        if (oldCenter) {
+          this.map!.getView().setCenter(oldCenter);
+        }
+
+        if (oldZoom !== undefined) {
+          this.map!.getView().setZoom(oldZoom);
+        }
+
+        selectedFeature.set('selected', true);
+        this.lastSelectedFeature = selectedFeature;
+
+        this.vectorLayer.changed();
+        this.map!.renderSync();
+      }
+    });
+
+    this.map.renderSync();
+  }
+
+  private getSelectedFeatures(): Feature<Geometry>[] {
+    return this.selectInteraction.getFeatures().getArray() as Feature<Geometry>[];
+  }
+
+  private async renderFeatureToImage(featureToRender: Feature<Geometry>): Promise<{ title: string, image: string }> {
+    if (!this.map) {
+      throw new Error('Map not initialized');
+    }
+
+    const geometry = featureToRender.getGeometry();
+    if (!geometry) {
+      throw new Error('Feature has no geometry');
+    }
+
+    const oldCenter = this.map.getView().getCenter();
+    const oldZoom = this.map.getView().getZoom();
+
+    // @ts-ignore
+    const oldPrintHiddenValues = new Map<Feature<Geometry>, any>();
+    // @ts-ignore
+    const oldSelectedValues = new Map<Feature<Geometry>, any>();
+
+    this.source.getFeatures().forEach(feature => {
+      const typedFeature = feature as Feature<Geometry>;
+      // @ts-ignore
+      oldPrintHiddenValues.set(typedFeature, typedFeature.get('printHidden'));
+      // @ts-ignore
+      oldSelectedValues.set(typedFeature, typedFeature.get('selected'));
+
+      if (typedFeature !== featureToRender) {
+        typedFeature.set('printHidden', true);
+        typedFeature.set('selected', false);
+      } else {
+        typedFeature.set('printHidden', false);
+        typedFeature.set('selected', true);
+      }
+    });
+
+    this.vectorLayer.changed();
+
+    const extent = geometry.getExtent();
+    const printExtent = buffer(extent, 20);
+
+    this.map.getView().fit(printExtent, {
+      padding: [25, 25, 25, 25],
+      maxZoom: 21,
+      duration: 0
+    });
+
+    const image = await new Promise<string>((resolve, reject) => {
+      this.map!.once('rendercomplete', () => {
+        try {
+          const size = this.map!.getSize();
+          if (!size) {
+            reject(new Error('Could not determine map size'));
+            return;
+          }
+
+          const mapCanvas = document.createElement('canvas');
+          mapCanvas.width = size[0];
+          mapCanvas.height = size[1];
+
+          const mapContext = mapCanvas.getContext('2d');
+          if (!mapContext) {
+            reject(new Error('Could not create canvas context'));
+            return;
+          }
+
+          const canvases = this.map!.getViewport().querySelectorAll<HTMLCanvasElement>(
+            '.ol-layer canvas, canvas.ol-layer'
+          );
+
+          canvases.forEach(canvas => {
+            if (canvas.width === 0 || canvas.height === 0) {
+              return;
+            }
+
+            const opacity = canvas.parentElement?.style.opacity || canvas.style.opacity;
+            mapContext.globalAlpha = opacity === '' ? 1 : Number(opacity);
+
+            const transform = canvas.style.transform;
+
+            if (transform) {
+              const matrix = transform
+                .match(/^matrix\(([^\)]*)\)$/)?.[1]
+                .split(',')
+                .map(Number);
+
+              if (matrix && matrix.length === 6) {
+                mapContext.setTransform(
+                  matrix[0], matrix[1],
+                  matrix[2], matrix[3],
+                  matrix[4], matrix[5]
+                );
+              }
+            } else {
+              mapContext.setTransform(1, 0, 0, 1, 0, 0);
+            }
+
+            mapContext.drawImage(canvas, 0, 0);
+          });
+
+          mapContext.setTransform(1, 0, 0, 1, 0, 0);
+          mapContext.globalAlpha = 1;
+
+          resolve(mapCanvas.toDataURL('image/png'));
+        } catch (e) {
+          reject(e);
+        }
+      });
+
+      this.map!.renderSync();
+    });
+
+    this.source.getFeatures().forEach(feature => {
+      const typedFeature = feature as Feature<Geometry>;
+      // @ts-ignore
+      typedFeature.set('printHidden', oldPrintHiddenValues.get(typedFeature));
+      // @ts-ignore
+      typedFeature.set('selected', oldSelectedValues.get(typedFeature));
+    });
+
+    if (oldCenter) {
+      this.map.getView().setCenter(oldCenter);
+    }
+    if (oldZoom !== undefined) {
+      this.map.getView().setZoom(oldZoom);
+    }
+
+    this.vectorLayer.changed();
+    this.map.renderSync();
+
+    const territoryNumber = featureToRender.get('territoryNumber') || '';
+    const territoryName = featureToRender.get('territoryName') || '';
+    const title = `${territoryNumber} ${territoryName}`.trim() || 'Gebietskarte';
+
+    return { title, image };
+  }
+
+  async exportSelectedFeaturesAsGridPdf(): Promise<void> {
+    const selectedFeatures = this.getSelectedFeatures();
+
+    if (!selectedFeatures.length) {
+      this.toastr.warning('No territory selected');
+      return;
+    }
+
+    const featuresToPrint = selectedFeatures.slice(0, 4);
+
+    if (selectedFeatures.length > 4) {
+      this.toastr.info('Only the first 4 selected territories will be printed');
+    }
+
+    try {
+      const renderedItems: { title: string, image: string }[] = [];
+
+      for (const feature of featuresToPrint) {
+        const item = await this.renderFeatureToImage(feature);
+        renderedItems.push(item);
+      }
+
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      const outerMargin = 6;
+      const gap = 4;
+
+      const cellWidth = (pageWidth - outerMargin * 2 - gap) / 2;
+      const cellHeight = (pageHeight - outerMargin * 2 - gap) / 2;
+
+      const titleHeight = 6;
+      const imageTopOffset = 7;
+
+      const slots = [
+        { x: outerMargin, y: outerMargin },
+        { x: outerMargin + cellWidth + gap, y: outerMargin },
+        { x: outerMargin, y: outerMargin + cellHeight + gap },
+        { x: outerMargin + cellWidth + gap, y: outerMargin + cellHeight + gap }
+      ];
+
+      renderedItems.forEach((item, index) => {
+        const slot = slots[index];
+
+        pdf.setDrawColor(120);
+        pdf.rect(slot.x, slot.y, cellWidth, cellHeight);
+
+        pdf.setFontSize(9);
+        pdf.text(item.title, slot.x + 1.5, slot.y + 4);
+
+        pdf.addImage(
+          item.image,
+          'PNG',
+          slot.x + 1,
+          slot.y + imageTopOffset,
+          cellWidth - 2,
+          cellHeight - imageTopOffset - 1
+        );
+      });
+
+      const filename =
+        renderedItems.length === 1
+          ? `${renderedItems[0].title.replace(/[^\wäöüÄÖÜß-]+/g, '_')}.pdf`
+          : `territories_4up.pdf`;
+
+      pdf.save(filename);
+
+    } catch (error: any) {
+      console.error(error);
+      this.toastr.error('Failed to create PDF');
+    }
   }
 }
