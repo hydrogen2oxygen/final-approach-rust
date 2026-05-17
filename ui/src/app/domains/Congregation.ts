@@ -2,22 +2,14 @@ export class Congregation {
   lastUpdate:Date = new Date();
   notes: string | null | undefined;
   simpleFeatureData: string | null | undefined;
-  territoryList:Territory[] = [];
-  territoriesNoContacts:Territory[] = [];
-  territoriesOlder8Months:Territory[] = [];
-  territoriesOlder4Months:Territory[] = [];
-  territoriesAssigned:Territory[] = [];
-  territoriesToBeAssigned:Territory[] = [];
-  territoriesArchived:Territory[] = [];
   preacherList:Preacher[] = [];
-  counterFtpUploadFailed:number = 0;
+  counterUploadFailed:number = 0;
   protocol:string[] = [];
 }
 
 export class Preacher {
   name:string = '';
   shortName:string | undefined;
-
   uuid:string = '';
   territoryListNumbers:string[] = [];
   group:string[] = [];
@@ -48,9 +40,7 @@ export class RegistryEntry {
   preacher:Preacher = new Preacher();
   assignDate:Date = new Date();
   returnDate:Date | null = new Date();
-
   registration:boolean = false;
-  territory:Territory = new Territory();
 }
 
 export class Version {

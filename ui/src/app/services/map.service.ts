@@ -3,7 +3,7 @@ import { environment } from '../../environments/environment';
 import { Observable } from 'rxjs';
 import {HttpClient} from '@angular/common/http';
 import {TerritoryMap} from '../domains/MapDesign';
-import {Territory} from '../domains/Congregation';
+import {Congregation, Territory} from '../domains/Congregation';
 
 @Injectable({
   providedIn: 'root'
@@ -81,6 +81,15 @@ export class MapService {
 
   deleteTerritory(territoryNumber: string) {
     return this.http.delete<{status: string}>(`${environment.apiBaseUrl}/territories/${territoryNumber}`);
+  }
+
+  // CONGREGATION
+  loadCongregation() {
+    return this.http.get<Congregation[]>(`${environment.apiBaseUrl}/congregation`);
+  }
+
+  saveCongregation(congregation:Congregation) {
+    return this.http.post<{status: string}>(`${environment.apiBaseUrl}/congregation/congregation`, congregation)
   }
 
 }

@@ -27,7 +27,7 @@ import {PersonaComponent} from './components/persona/persona.component';
 import {Coordinate} from 'ol/coordinate';
 import {toLonLat} from 'ol/proj';
 import {createEmpty, extend, isEmpty} from 'ol/extent';
-import {Territory} from './domains/Congregation';
+import {Congregation, Preacher, Territory} from './domains/Congregation';
 import { jsPDF } from 'jspdf';
 import { buffer } from 'ol/extent';
 import { click, shiftKeyOnly } from 'ol/events/condition';
@@ -53,7 +53,9 @@ export class AppComponent implements OnInit {
   territoryName = new FormControl('');
   territoryCustomNumber = new FormControl('');
   territoryCustomName = new FormControl('');
+  preacherName = new FormControl('');
 
+  congregation: Congregation | undefined;
   territoriesSorted: Territory[] = [];
   territoriesNoContacts:Territory[] = [];
   territoriesOlder8Months:Territory[] = [];
@@ -161,8 +163,6 @@ export class AppComponent implements OnInit {
       console.log('Selected feature is:', this.lastSelectedFeature.get('territoryName'));
 
       this.vectorLayer.changed();
-
-      this.reloadCongregationData();
     });
 
 
@@ -223,16 +223,20 @@ export class AppComponent implements OnInit {
         this.loadTerritoryMap(mapDesign);
       });
     } else {
+
       this.pingService.ping().subscribe(response => {
         console.log('Ping response:', response);
         this.persona = Personas.MANAGER;
       });
+
       this.appService.getAppInfo().subscribe(info => {
         this.appName = info.appName;
         this.version = info.version;
       });
+
       this.loadHome()
       this.loadMapDesign()
+      this.reloadCongregationData();
     }
   }
 
@@ -277,21 +281,25 @@ export class AppComponent implements OnInit {
       return new Style({});
     }
 
+    let strokeWidth = this.map.getView().getZoom() - 12;
+    if (strokeWidth < 0) strokeWidth = 0.1
+    if (strokeWidth > 5) strokeWidth = 5
+
     if (feature.get('selected')) {
-      style = this.createStyle([0, 255, 0, 0.05],[255, 0, 0, 0.5],5,'#001010','#fff',2);
+      style = this.createStyle([0, 255, 0, 0.05],[255, 0, 0, 0.5],strokeWidth,'#001010','#fff',2);
     } else if (!this.showOsmData && feature.get('residentialUnit')) {
       style = new Style({});
     } else if (this.showOsmData && feature.get('residentialUnit')) {
-      style = this.createStyle([0, 255, 0, 0.05],[0, 0, 255, 0.05],5,'#00c4ff','#fff',2);
+      style = this.createStyle([0, 255, 0, 0.05],[0, 0, 255, 0.05],strokeWidth,'#00c4ff','#fff',2);
     } else if (feature.get('imported') && !this.hideImportedFeature) {
-      style = this.createStyle([0, 0, 0, 0.05],[255, 0, 0, 0.25],4,'#000','#fff',3);
+      style = this.createStyle([0, 0, 0, 0.05],[255, 0, 0, 0.25],strokeWidth,'#000','#fff',3);
     } else if (feature.get('imported') && this.hideImportedFeature) {
       style = new Style({});
     } else if (feature.get('draft') == false) {
-      style = this.createStyle([0, 0, 255, 0.1],[0, 100, 0, 0.5],5,'#007700','#fff',2);
+      style = this.createStyle([0, 0, 255, 0.1],[0, 100, 0, 0.5],strokeWidth,'#007700','#fff',2);
     }
 
-
+console.log(this.map.getView().getZoom());
     if (this.map.getView().getZoom() > 17) {
       style.getText().setText(feature.get('territoryNumber') + ' ' + feature.get('territoryName') + "\n" + feature.get('additionalNote'));
     } else if (this.map.getView().getZoom() > 16) {
@@ -716,6 +724,20 @@ export class AppComponent implements OnInit {
   }
 
   reloadCongregationData():void {
+
+    console.log("Reloading Congregation Data")
+    this.mapService.loadCongregation().subscribe({"next": congregation => {
+      this.congregation = congregation[0];
+      if (!this.congregation) {
+        console.log("No Congregation found. Creating a new one")
+        this.congregation = new Congregation();
+        this.mapService.saveCongregation(this.congregation).subscribe(()=> console.log("Congregation saved"))
+      }
+    },
+    "error": (error) => {
+      console.log(error)
+      this.toastr.error('Error loading congregation:', error);
+    }});
 
     const now:Date = new Date();
     const eightMonthsAgo:Date = new Date(now.getFullYear(), now.getMonth() - 8, now.getDate());
@@ -1152,5 +1174,23 @@ export class AppComponent implements OnInit {
     this.note.setValue(null);
 
     this.vectorLayer.changed();
+  }
+
+  protected assignPreacher() {
+    console.log("Assigning Preacher", this.preacherName.value)
+    let preacher = this.congregation.preacherList.find(p => p.name == this.preacherName.value)
+    console.log(preacher)
+    if (!preacher) {
+      console.log("Preacher not found")
+      preacher = new Preacher();
+      preacher.name = this.preacherName.value;
+      this.congregation.preacherList.push(preacher);
+      this.preacherName.setValue(undefined);
+      console.log(this.congregation.preacherList)
+    }
+    let territory = this.territoriesSorted.find(t => t.number == this.lastSelectedFeature.get('territoryNumber'));
+    if (territory) {
+      // continue
+    }
   }
 }
