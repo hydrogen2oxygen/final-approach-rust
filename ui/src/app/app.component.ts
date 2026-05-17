@@ -115,44 +115,52 @@ export class AppComponent implements OnInit {
       condition: click,
       toggleCondition: shiftKeyOnly,
       style: (featureLike) => {
-        let feature = featureLike instanceof Feature ? featureLike : this.source.getFeatureById(featureLike.get('id'));
-        feature.set('selected', true);
         const s = this.featureFunction(featureLike);
 
-        if (featureLike instanceof Feature) {
-          feature = featureLike; // already the real one
-        } else {
-          const id = featureLike.get('id'); // from RenderFeature's properties
-          feature = this.source.getFeatureById(id); // get from source
-        }
-        this.lastSelectedFeature = feature;
-        // reuse your text logic
-        // Optionally emphasize selection:
         const stroke = s.getStroke();
-        if (stroke) stroke.setWidth((stroke.getWidth?.() ?? 3) + 2);
+        if (stroke) {
+          stroke.setWidth((stroke.getWidth?.() ?? 3) + 2);
+        }
+
         return s;
       }
     });
     this.map.addInteraction(this.selectInteraction);
     this.initKmlDragAndDrop();
     this.selectInteraction.on('select', e => {
-      if (e.deselected) {
-        if (this.lastSelectedFeature) {
-          this.lastSelectedFeature.set('selected', false);
-          this.lastSelectedFeature = undefined;
-        }
+
+      e.deselected.forEach(feature => {
+        feature.set('selected', false);
+        feature.setStyle(undefined);
+      });
+
+      e.selected.forEach(feature => {
+        feature.set('selected', true);
+        feature.setStyle(undefined);
+      });
+
+      const selectedFeatures = this.selectInteraction.getFeatures().getArray() as Feature<Geometry>[];
+
+      if (selectedFeatures.length === 0) {
+        this.lastSelectedFeature = undefined;
+
         this.territoryCustomNumber.setValue(null);
         this.territoryCustomName.setValue(null);
         this.note.setValue(null);
+
+        this.vectorLayer.changed();
+        return;
       }
 
-      this.lastSelectedFeature = e.selected[0];
-      if (this.lastSelectedFeature) {
-        this.territoryCustomNumber.setValue(this.lastSelectedFeature.get('territoryNumber'));
-        this.territoryCustomName.setValue(this.lastSelectedFeature.get('territoryName'));
-        this.note.setValue(this.lastSelectedFeature.get('note'));
-        console.log("Selected feature is :", this.lastSelectedFeature.get('territoryName'));
-      }
+      this.lastSelectedFeature = selectedFeatures[selectedFeatures.length - 1];
+
+      this.territoryCustomNumber.setValue(this.lastSelectedFeature.get('territoryNumber'));
+      this.territoryCustomName.setValue(this.lastSelectedFeature.get('territoryName'));
+      this.note.setValue(this.lastSelectedFeature.get('note'));
+
+      console.log('Selected feature is:', this.lastSelectedFeature.get('territoryName'));
+
+      this.vectorLayer.changed();
 
       this.reloadCongregationData();
     });
@@ -164,12 +172,7 @@ export class AppComponent implements OnInit {
       } else if (event.key === 'Escape') {
         this.removeInteraction();
         this.modeSelected = '';
-        this.lastSelectedFeature.set('selected', false);
-        this.lastSelectedFeature.setStyle(this.featureFunction(this.lastSelectedFeature))
-        this.lastSelectedFeature = undefined;
-        this.territoryCustomNumber.setValue(null);
-        this.territoryCustomName.setValue(null);
-        this.note.setValue(null);
+        this.clearSelectedFeatures();
       } else if (event.ctrlKey && event.key === 's') {
         event.preventDefault();
         this.saveModifications();
@@ -1132,5 +1135,22 @@ export class AppComponent implements OnInit {
       console.error(error);
       this.toastr.error('Failed to create PDF');
     }
+  }
+
+  private clearSelectedFeatures(): void {
+    this.selectInteraction.getFeatures().forEach(feature => {
+      feature.set('selected', false);
+      feature.setStyle(undefined);
+    });
+
+    this.selectInteraction.getFeatures().clear();
+
+    this.lastSelectedFeature = undefined;
+
+    this.territoryCustomNumber.setValue(null);
+    this.territoryCustomName.setValue(null);
+    this.note.setValue(null);
+
+    this.vectorLayer.changed();
   }
 }
