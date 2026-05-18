@@ -14,8 +14,30 @@ use websocket::ws_index;
 #[folder = "./ui/dist/ui/browser/"]
 struct Asset;
 
+/**
+* Add here the datapaths you allow to use, in order to not go where nobody should go
+*/
+fn allowed_data_path(path: &str) -> Option<&'static str> {
+    match path {
+        "mapDesigns" => Some("mapDesigns"), // all map designs, polygons
+        "territories" => Some("territories"), // all territory to assignee and registry relations
+        "congregation" => Some("congregation"), // settings, assignees, notes and so on
+        _ => None,
+    }
+}
+
+/**
+* allow only letters, numbers, _, -, and maybe UUID-like strings
+*/
+fn is_safe_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 80
+        && id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
 #[get("/{filename:.*}")]
 async fn serve_file(path: web::Path<String>) -> impl Responder {
+
     let filename = path.into_inner();
     let path = if filename.is_empty() {
         "index.html"
@@ -46,8 +68,18 @@ async fn ping() -> impl Responder {
 
 #[post("/api/data/{path}/{id}")]
 async fn save(request_path: web::Path<(String,String)>, body: String) -> impl Responder {
+
     let (path, id) = request_path.into_inner();
-    info!("Received map design: {}", body);
+    info!("Received data: {}", body);
+
+    let safe_path = match allowed_data_path(&path) {
+        Some(p) => p,
+        None => return HttpResponse::BadRequest().body("Invalid path"),
+    };
+
+    if !is_safe_id(&id) {
+        return HttpResponse::BadRequest().body("Invalid id");
+    }
 
     match serde_json::from_str::<serde_json::Value>(&body) {
         Ok(j) => j,
@@ -57,17 +89,16 @@ async fn save(request_path: web::Path<(String,String)>, body: String) -> impl Re
         }
     };
 
-    //let path = format!("./data/{}/{}.json", path, id);
-    if let Err(e) = std::fs::create_dir_all(format!("./data/{}", path)) {
+    if let Err(e) = std::fs::create_dir_all(format!("./data/{}", safe_path)) {
         error!("Fehler beim Erstellen des Verzeichnisses: {}", e);
         return HttpResponse::InternalServerError()
             .body("Fehler beim Erstellen des Verzeichnisses");
     }
-    if let Err(e) = std::fs::write(format!("./data/{}/{}.json", path, id), body) {
+    if let Err(e) = std::fs::write(format!("./data/{}/{}.json", safe_path, id), body) {
         error!("Fehler beim Schreiben der Datei: {}", e);
         return HttpResponse::InternalServerError().body("Fehler beim Schreiben der Datei");
     }
-    info!("Daten gespeichert unter {}", path);
+    info!("Daten gespeichert unter {}", safe_path);
 
     HttpResponse::Ok().json(serde_json::json!({"status":"ok"}))
 }
@@ -75,7 +106,13 @@ async fn save(request_path: web::Path<(String,String)>, body: String) -> impl Re
 #[get("/api/data/{path}")]
 async fn load_all(request_path: web::Path<String>) -> impl Responder {
     let path = request_path.into_inner();
-    let path = format!("./data/{}", path);
+
+    let safe_path = match allowed_data_path(&path) {
+        Some(p) => p,
+        None => return HttpResponse::BadRequest().body("Invalid path"),
+    };
+
+    let path = format!("./data/{}", safe_path);
     let mut data: Vec<Value> = Vec::new();
 
     if let Ok(entries) = std::fs::read_dir(path) {
@@ -100,7 +137,17 @@ async fn load_all(request_path: web::Path<String>) -> impl Responder {
 #[delete("/api/data/{path}/{id}")]
 async fn delete(request_path: web::Path<(String,String)>) -> impl Responder {
     let (path, id) = request_path.into_inner();
-    let path = format!("./data/{}/{}.json", path, id);
+
+    let safe_path = match allowed_data_path(&path) {
+        Some(p) => p,
+        None => return HttpResponse::BadRequest().body("Invalid path"),
+    };
+
+    if !is_safe_id(&id) {
+        return HttpResponse::BadRequest().body("Invalid id");
+    }
+
+    let path = format!("./data/{}/{}.json", safe_path, id);
 
     if std::fs::remove_file(&path).is_ok() {
         info!("data/{}/{}.json deleted", path, id);
