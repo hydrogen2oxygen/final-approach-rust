@@ -34,7 +34,7 @@ import { click, shiftKeyOnly } from 'ol/events/condition';
 
 @Component({
     selector: 'app-root',
-  imports: [CommonModule, MatButtonModule, MatDialogModule, MatIconModule, ReactiveFormsModule],
+    imports: [CommonModule, MatButtonModule, MatDialogModule, MatIconModule, ReactiveFormsModule],
     templateUrl: './app.component.html',
     styleUrls: ['./app.component.scss']
 })
@@ -155,13 +155,9 @@ export class AppComponent implements OnInit {
       }
 
       this.lastSelectedFeature = selectedFeatures[selectedFeatures.length - 1];
-
       this.territoryCustomNumber.setValue(this.lastSelectedFeature.get('territoryNumber'));
       this.territoryCustomName.setValue(this.lastSelectedFeature.get('territoryName'));
       this.note.setValue(this.lastSelectedFeature.get('note'));
-
-      console.log('Selected feature is:', this.lastSelectedFeature.get('territoryName'));
-
       this.vectorLayer.changed();
     });
 
@@ -218,7 +214,6 @@ export class AppComponent implements OnInit {
       this.persona = Personas.PREACHER
       // The map is loaded from the URL parameter, id=<id>,folder=<folder>
       const path = urlParams.get('path');
-      console.log('Loading map design with id:', id, 'and path:', path);
       this.mapService.loadMapDesignById(id, path).subscribe( (mapDesign:TerritoryMap) => {
         this.loadTerritoryMap(mapDesign);
       });
@@ -283,7 +278,7 @@ export class AppComponent implements OnInit {
 
     let strokeWidth = this.map.getView().getZoom() - 12;
     if (strokeWidth < 0) strokeWidth = 0.1
-    if (strokeWidth > 5) strokeWidth = 5
+    if (strokeWidth > 6) strokeWidth = 6
 
     if (feature.get('selected')) {
       style = this.createStyle([0, 255, 0, 0.05],[255, 0, 0, 0.5],strokeWidth,'#001010','#fff',2);
@@ -299,7 +294,6 @@ export class AppComponent implements OnInit {
       style = this.createStyle([0, 0, 255, 0.1],[0, 100, 0, 0.5],strokeWidth,'#007700','#fff',2);
     }
 
-console.log(this.map.getView().getZoom());
     if (this.map.getView().getZoom() > 17) {
       style.getText().setText(feature.get('territoryNumber') + ' ' + feature.get('territoryName') + "\n" + feature.get('additionalNote'));
     } else if (this.map.getView().getZoom() > 16) {
@@ -352,7 +346,6 @@ console.log(this.map.getView().getZoom());
         if (home && this.map) {
           this.home = home;
           this.toastr.success('Home view saved successfullyy: ' + JSON.stringify(home));
-          console.log('Home view saved successfully!');
         }
       });
     }, error => {
@@ -400,24 +393,12 @@ console.log(this.map.getView().getZoom());
 
     modify.on('modifyend', evt => {
 
-      console.log("modifyend", evt);
       let modifiedFeature = evt.features.getArray()[0];
       modifiedFeature.set('draft', true);
       this.territoryCustomNumber.setValue(modifiedFeature.get('territoryNumber'));
       this.territoryCustomName.setValue(modifiedFeature.get('territoryName'));
       this.note.setValue(modifiedFeature.get('note'));
       this.lastSavedTerritoryName = this.territoryCustomNumber.value + ' ' + this.territoryCustomName.value;
-
-      /*FIXME this.map.territoryMapList.forEach(t => {
-        if (t.territoryNumber == this.territoryCustomNumber.value) {
-          let data = this.wktFormat.writeGeometry(<Geometry>modifiedFeature.getGeometry());
-          t.simpleFeatureData = data;
-          t.draft = true; // it remains a "draft" until you activate it
-          t.lastUpdate = new Date();
-          this.featureModified = true;
-        }
-      })*/
-
       this.modifiedFeatures = true;
     })
 
@@ -439,7 +420,6 @@ console.log(this.map.getView().getZoom());
     });
     let draw: Draw = this.interaction;
     draw.on('drawend', evt => {
-      console.log("drawend", evt);
       this.modifiedFeatures = true;
       this.lastSelectedFeature = evt.feature;
       this.lastSelectedFeature.set('draft', true);
@@ -466,8 +446,6 @@ console.log(this.map.getView().getZoom());
           this.toastr.warning("mapDesign with id: " + feature.get('deleteID')  +" deleted successfully");
         })
       }
-
-      console.log("saving feature", feature.get('draft'));
 
       if (feature.get('draft') == false) {
         return;
@@ -515,12 +493,11 @@ console.log(this.map.getView().getZoom());
   }
 
   deleteFeature() {
-    this.territoriesSorted.forEach(t => {console.log(t.number, t.name)})
     let territory = this.territoriesSorted.find(t => t.number == this.lastSelectedFeature.get("territoryNumber"))
     if (territory) {
       if (!confirm("This territory is currently in use. Are you sure you want to delete it?")) return;
       this.mapService.deleteTerritory(territory.number).subscribe(() => {
-        console.log("territory deleted")
+        this.toastr.warning("Territory " + territory.number + " deleted successfully");
       })
     }
 
@@ -725,7 +702,6 @@ console.log(this.map.getView().getZoom());
 
   reloadCongregationData():void {
 
-    console.log("Reloading Congregation Data")
     this.mapService.loadCongregation().subscribe({"next": congregation => {
       this.congregation = congregation[0];
       if (!this.congregation) {
