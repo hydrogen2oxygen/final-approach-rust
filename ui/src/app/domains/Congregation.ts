@@ -1,4 +1,5 @@
 export class Congregation {
+  name:string = '';
   lastUpdate:Date = new Date();
   notes: string | null | undefined;
   simpleFeatureData: string | null | undefined;

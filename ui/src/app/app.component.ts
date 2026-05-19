@@ -30,6 +30,7 @@ import {Congregation, Preacher, Territory} from './domains/Congregation';
 import { jsPDF } from 'jspdf';
 import { buffer } from 'ol/extent';
 import { click, shiftKeyOnly } from 'ol/events/condition';
+import {SettingsComponent} from './components/settings/settings.component';
 
 @Component({
     selector: 'app-root',
@@ -1161,4 +1162,14 @@ export class AppComponent implements OnInit {
       console.log(territory)
     }
   }
+
+  protected openSettings() {
+    this.dialog.open(SettingsComponent, {
+      minWidth: '90%',
+      data: {
+        persona: this.persona
+      }
+    });
+  }
+
 }
