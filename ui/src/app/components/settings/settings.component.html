@@ -1,9 +1,6 @@
 <h2 mat-dialog-title>Settings</h2>
 <mat-dialog-content>
-
-  <div style="display: flex; gap: 2rem;">
-    <div class="col">
-
+    @if (persona === Personas.DESIGNER || persona === Personas.MANAGER) {
       <div class="input-group input-group-sm mb-3">
         <span class="input-group-text" id="congregationName">Congregation Name</span>
         <input type="text" class="form-control" [formControl]="congregationName">
@@ -12,12 +9,20 @@
       <div class="mb-3">
         <label for="notes" class="form-label">Notes</label>
         <textarea id="notes" class="form-control form-control-sm" placeholder="Notes" [formControl]="note"></textarea>
-
       </div>
-    </div>
-    <div class="col">
-      ...
-    </div>
-  </div>
+
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" value="" id="includeForeignLanguageGroup"
+               [formControl]="includeForeignLanguageGroup">
+        <label class="form-check-label" for="includeForeignLanguageGroup">
+          Include Foreign Language Group
+        </label>
+      </div>
+
+      <div class="input-group input-group-sm mb-3">
+        <span class="input-group-text" id="foreignLanguageGroupName">Foreign Language Group Name</span>
+        <input type="text" class="form-control" [formControl]="foreignLanguageGroupName">
+      </div>
+    }
   <button class="btn btn-success" mat-dialog-close (click)="save()">Save</button>
 </mat-dialog-content>

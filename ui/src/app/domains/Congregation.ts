@@ -6,6 +6,8 @@ export class Congregation {
   preacherList:Preacher[] = [];
   counterUploadFailed:number = 0;
   protocol:string[] = [];
+  includeForeignLanguageGroup:boolean = false;
+  foreignLanguageGroupName:string = "";
 }
 
 export class Preacher {

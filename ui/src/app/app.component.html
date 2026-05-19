@@ -9,7 +9,12 @@
     </button>
 </div>
 
-<div  style="position: fixed; left: 5rem; top: 1rem; display: flex; flex-direction: row; gap: 0.5rem;">
+<div  style="position: fixed; left: 4rem; top: 1rem; display: flex; flex-direction: row; gap: 0.5rem;">
+
+  @if (congregation) {
+    <div style="background-color: rgba(0,128,255,0.66); border-radius: 0.5rem;"><span style="color:white; font-family: 'Arial Black'; font-size: 0.75rem; margin-left: 0.4rem; margin-right: 0.4rem">{{congregation.name}}</span></div>
+  }
+
   @switch (persona) {
     @case ('DESIGNER') {
       <button class="icon-button icon-primary" title="DESIGNER" (click)="openPersonaDialog()"><mat-icon>design_services</mat-icon> <span>DESIGNER</span></button>

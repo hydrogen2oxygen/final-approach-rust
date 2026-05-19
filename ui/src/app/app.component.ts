@@ -1164,11 +1164,19 @@ export class AppComponent implements OnInit {
   }
 
   protected openSettings() {
-    this.dialog.open(SettingsComponent, {
-      minWidth: '90%',
+    const dialogRef = this.dialog.open(SettingsComponent, {
+      minWidth: '50%',
       data: {
         persona: this.persona
       }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (!result) {
+        return;
+      }
+
+      this.congregation = result.congregation;
     });
   }
 
