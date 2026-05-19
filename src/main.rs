@@ -1,5 +1,3 @@
-mod websocket;
-
 use actix_cors::Cors;
 use actix_web::http::header;
 use actix_web::{delete, get, post, web, App, HttpResponse, HttpServer, Responder};
@@ -8,7 +6,6 @@ use mime_guess::from_path;
 use rust_embed::RustEmbed;
 use serde_json::Value;
 use std::env;
-use websocket::ws_index;
 
 #[derive(RustEmbed)]
 #[folder = "./ui/dist/ui/browser/"]
@@ -184,7 +181,6 @@ async fn main() -> std::io::Result<()> {
             .service(load_all)
             .service(delete)
             .service(serve_file) // http server, before ws
-            .route("/ws", web::get().to(ws_index)) // leave it on last position, else CORS error arise
     })
     .bind(bind_addr)?
     .run()
