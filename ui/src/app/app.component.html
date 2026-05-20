@@ -11,8 +11,12 @@
 
 <div  style="position: fixed; left: 4rem; top: 1rem; display: flex; flex-direction: row; gap: 0.5rem;">
 
-  @if (congregation) {
-    <div style="background-color: rgba(0,128,255,0.66); border-radius: 0.5rem;"><span style="color:white; font-family: 'Arial Black'; font-size: 0.75rem; margin-left: 0.4rem; margin-right: 0.4rem">{{congregation.name}}</span></div>
+  @if (congregation && congregation.name) {
+    <button style="background-color: rgba(0,128,255,0.66)!important;" class="icon-button icon-success"><mat-icon>home_filled</mat-icon> {{congregation.name}}</button>
+  }
+
+  @if (congregation && congregation.includeForeignLanguageGroup) {
+    <button style="background-color: rgba(183 0 255 / 0.66)!important;" class="icon-button icon-success"><mat-icon>group</mat-icon> {{congregation.foreignLanguageGroupName}}</button>
   }
 
   @switch (persona) {
@@ -89,8 +93,8 @@
 }
 
 @if (lastSelectedFeature && persona == 'MANAGER') {
-  <div style="position: fixed; top: 1rem; right: 1rem; margin: 1rem; background-color: #97d0f8; border-radius: 0.5rem; padding: 0.75rem;">
-    Assign a preacher<br/>
+  <div style="position: fixed; top: 1rem; right: 1rem; margin: 1rem; background-color: rgb(0 102 255 / 0.7); border-radius: 0.5rem; padding: 0.75rem;">
+    <b>{{lastSelectedTerritory.number}} - {{lastSelectedTerritory.name}}</b> <button class="btn"><mat-icon>home_filled</mat-icon></button><br/>
     <div class="input-group input-group-sm mb-0 align-items-center">
       <input class="form-control" list="datalistOptions" placeholder="Type to search..." [formControl]="preacherName"> <button class="btn btn-primary" (click)="assignPreacher()">Assign</button>
       <datalist id="datalistOptions">
@@ -99,5 +103,27 @@
         }
       </datalist>
     </div>
+
+    @if (lastSelectedTerritory) {
+      <table class="table table-sm tableRegistry table-hover" style="margin-top: 0.75rem">
+        <thead>
+        <tr>
+          <th>ACTIONS</th><th>ASSIGNED</th><th>RETURNED</th><th>ASSIGNEE</th>
+        </tr>
+        </thead>
+        <tbody>
+          @for (r of lastSelectedTerritory.registryEntryList; track r) {
+            <tr>
+              <td>
+                <button class="btn-sm btn btn-danger btn-sm2" (click)="deleteRegistry(r)" title="delete">DEL</button>
+              </td>
+              <td>{{r.assignDate|date}}</td>
+              <td>{{r.returnDate|date}}</td>
+              <td>{{r.preacher.name}}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
   </div>
 }

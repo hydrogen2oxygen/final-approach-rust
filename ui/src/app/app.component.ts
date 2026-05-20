@@ -26,7 +26,7 @@ import {PersonaComponent} from './components/persona/persona.component';
 import {Coordinate} from 'ol/coordinate';
 import {toLonLat} from 'ol/proj';
 import {createEmpty, extend, isEmpty} from 'ol/extent';
-import {Congregation, Preacher, Territory} from './domains/Congregation';
+import {Congregation, Preacher, RegistryEntry, Territory} from './domains/Congregation';
 import { jsPDF } from 'jspdf';
 import { buffer } from 'ol/extent';
 import { click, shiftKeyOnly } from 'ol/events/condition';
@@ -69,6 +69,7 @@ export class AppComponent implements OnInit {
   wktFormat = new WKT();
   modeSelected = '';
   lastSelectedFeature: Feature | undefined;
+  lastSelectedTerritory: Territory | undefined;
   lastSavedTerritoryName: string = '';
   interaction: any = null;
   interactionType: string | undefined
@@ -154,6 +155,7 @@ export class AppComponent implements OnInit {
       }
 
       this.lastSelectedFeature = selectedFeatures[selectedFeatures.length - 1];
+      this.lastSelectedTerritory = this.territoriesSorted.find( t => t.number === this.lastSelectedFeature.get('territoryNumber'))
       this.territoryCustomNumber.setValue(this.lastSelectedFeature.get('territoryNumber'));
       this.territoryCustomName.setValue(this.lastSelectedFeature.get('territoryName'));
       this.note.setValue(this.lastSelectedFeature.get('note'));
@@ -340,6 +342,12 @@ export class AppComponent implements OnInit {
         if (home && this.map) {
           this.home = home;
           this.toastr.success('Home view saved successfullyy: ' + JSON.stringify(home));
+
+          if (this.congregation) {
+            this.congregation.homeCoordinates = home.coordinates;
+            this.congregation.homeZoom = home.zoom;
+            this.mapService.saveCongregation(this.congregation).subscribe(()=>{});
+          }
         }
       });
     }, error => {
@@ -350,9 +358,14 @@ export class AppComponent implements OnInit {
   loadHome(): void {
     this.mapService.loadHome().subscribe(home => {
       this.home = home;
+      console.log(home)
       if (home && this.map) {
         this.map.getView().setCenter(home.coordinates);
         this.map.getView().setZoom(home.zoom);
+      } else if (this.congregation && this.map) {
+        console.log("test")
+        this.map.getView().setCenter(this.congregation.homeCoordinates);
+        this.map.getView().setZoom(this.congregation.homeZoom);
       }
     });
   }
@@ -1153,13 +1166,28 @@ export class AppComponent implements OnInit {
       preacher = new Preacher();
       preacher.name = this.preacherName.value;
       this.congregation.preacherList.push(preacher);
+      this.mapService.saveCongregation(this.congregation).subscribe(()=>{})
       this.preacherName.setValue(undefined);
       console.log(this.congregation.preacherList)
     }
     let territory = this.territoriesSorted.find(t => t.number == this.lastSelectedFeature.get('territoryNumber'));
     if (territory) {
-      console.log("Territory found")
-      console.log(territory)
+      let registry = new RegistryEntry();
+      registry.preacher = preacher;
+      registry.returnDate = undefined;
+
+      const openEntry = territory.registryEntryList.find(e => !e.returnDate);
+
+      if (openEntry) {
+        openEntry.returnDate = new Date();
+      }
+
+      territory.registryEntryList.unshift(registry);
+      if (territory.registryEntryList.length > 20) {
+        territory.registryEntryList.pop();
+      }
+      this.lastSelectedTerritory = territory;
+      this.mapService.saveTerritory(territory).subscribe(()=> {});
     }
   }
 
@@ -1177,7 +1205,19 @@ export class AppComponent implements OnInit {
       }
 
       this.congregation = result.congregation;
+      console.log(this.congregation);
     });
   }
 
+  protected deleteRegistry(r: RegistryEntry) {
+    this.lastSelectedTerritory.registryEntryList =
+      this.lastSelectedTerritory.registryEntryList.filter(entry => {
+        const sameDate = entry.assignDate === r.assignDate;
+        const samePreacher = entry.preacher.name === r.preacher.name;
+
+        return !(sameDate && samePreacher);
+      });
+
+    this.mapService.saveTerritory(this.lastSelectedTerritory).subscribe(() => {});
+  }
 }

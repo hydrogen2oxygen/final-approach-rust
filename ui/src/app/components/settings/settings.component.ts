@@ -36,6 +36,8 @@ export class SettingsComponent implements OnInit {
       this.congregation = congregation[0]
       this.congregationName.setValue(this.congregation.name)
       this.note.setValue(this.congregation.notes)
+      this.includeForeignLanguageGroup.setValue(this.congregation.includeForeignLanguageGroup)
+      this.foreignLanguageGroupName.setValue(this.congregation.foreignLanguageGroupName)
       console.log('SettingsComponent initialized')
     })
 
@@ -44,6 +46,8 @@ export class SettingsComponent implements OnInit {
   protected save() {
     this.congregation.notes = this.note.value;
     this.congregation.name = this.congregationName.value;
+    this.congregation.includeForeignLanguageGroup = this.includeForeignLanguageGroup.value;
+    this.congregation.foreignLanguageGroupName = this.foreignLanguageGroupName.value;
     this.mapService.saveCongregation(this.congregation).subscribe(()=> {
       this.toastr.success('Saved', 'Settings')
 

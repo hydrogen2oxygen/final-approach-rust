@@ -8,6 +8,8 @@ export class Congregation {
   protocol:string[] = [];
   includeForeignLanguageGroup:boolean = false;
   foreignLanguageGroupName:string = "";
+  homeCoordinates:any;
+  homeZoom:any;
 }
 
 export class Preacher {
@@ -35,6 +37,7 @@ export class Territory {
   newPreacherAssigned:boolean=false;
   exported:boolean=false;
   mapExist:boolean=false;
+  foreignLanguageGroup:boolean=false;
 }
 
 export class RegistryEntry {

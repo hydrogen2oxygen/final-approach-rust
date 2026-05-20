@@ -47,7 +47,7 @@ export class MapService {
       });
     } else {
       return new Observable(observer => {
-        observer.next(null);
+        observer.next(undefined);
         observer.complete();
       });
     }
