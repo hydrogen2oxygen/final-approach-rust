@@ -1,4 +1,4 @@
-<h2 mat-dialog-title>Settings</h2>
+<h3 mat-dialog-title>Settings</h3>
 <mat-dialog-content>
     @if (persona === Personas.DESIGNER || persona === Personas.MANAGER) {
       <div class="input-group input-group-sm mb-3">
@@ -6,6 +6,7 @@
         <input type="text" class="form-control" [formControl]="congregationName">
       </div>
 
+      <!-- TODO notes in extra dialog -->
       <div class="mb-3">
         <label for="notes" class="form-label">Notes</label>
         <textarea id="notes" class="form-control form-control-sm" placeholder="Notes" [formControl]="note"></textarea>
@@ -19,10 +20,61 @@
         </label>
       </div>
 
+      @if (includeForeignLanguageGroup.value)  {
       <div class="input-group input-group-sm mb-3">
         <span class="input-group-text" id="foreignLanguageGroupName">Foreign Language Group Name</span>
         <input type="text" class="form-control" [formControl]="foreignLanguageGroupName">
       </div>
+      }
+
+      <hr>
+      <div style="display: flex; gap: 2rem;">
+        <div class="col">
+          <h6>Default Map Colors</h6>
+          <table>
+            <tr>
+              <td>Fill Color</td>
+              <td style="padding-left: 1rem"><input type="color" class="form-control form-control-color" [formControl]="defaultFillColor"></td>
+            </tr>
+            <tr>
+              <td>Stroke Color</td>
+              <td style="padding-left: 1rem"><input type="color" class="form-control form-control-color" [formControl]="defaultStrokeColor"></td>
+            </tr>
+            <tr>
+              <td>Text Fill Color</td>
+              <td style="padding-left: 1rem"><input type="color" class="form-control form-control-color" [formControl]="defaultTextFillColor"></td>
+            </tr>
+            <tr>
+              <td>Text Stroke Color</td>
+              <td style="padding-left: 1rem"><input type="color" class="form-control form-control-color" [formControl]="defaultTextStrokeColor"></td>
+            </tr>
+          </table>
+        </div>
+        @if (includeForeignLanguageGroup.value)  {
+        <div class="col">
+          <h6>Foreign Map Colors</h6>
+          <table>
+            <tr>
+              <td>Fill Color</td>
+              <td style="padding-left: 1rem"><input type="color" class="form-control form-control-color" [formControl]="foreignFillColor"></td>
+            </tr>
+            <tr>
+              <td>Stroke Color</td>
+              <td style="padding-left: 1rem"><input type="color" class="form-control form-control-color" [formControl]="foreignStrokeColor"></td>
+            </tr>
+            <tr>
+              <td>Text Fill Color</td>
+              <td style="padding-left: 1rem"><input type="color" class="form-control form-control-color" [formControl]="foreignTextFillColor"></td>
+            </tr>
+            <tr>
+              <td>Text Stroke Color</td>
+              <td style="padding-left: 1rem"><input type="color" class="form-control form-control-color" [formControl]="foreignTextStrokeColor"></td>
+            </tr>
+          </table>
+        </div>
+        }
+      </div>
     }
+  <hr>
   <button class="btn btn-success" mat-dialog-close (click)="save()">Save</button>
 </mat-dialog-content>

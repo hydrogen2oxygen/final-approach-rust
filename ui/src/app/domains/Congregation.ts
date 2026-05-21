@@ -1,3 +1,5 @@
+import {FormControl} from '@angular/forms';
+
 export class Congregation {
   name:string = '';
   lastUpdate:Date = new Date();
@@ -10,6 +12,14 @@ export class Congregation {
   foreignLanguageGroupName:string = "";
   homeCoordinates:any;
   homeZoom:any;
+  defaultFillColor:string = "";
+  defaultStrokeColor:string = "";
+  defaultTextFillColor:string = "";
+  defaultTextStrokeColor:string = "";
+  foreignFillColor:string = "";
+  foreignStrokeColor:string = "";
+  foreignTextFillColor:string = "";
+  foreignTextStrokeColor:string = "";
 }
 
 export class Preacher {

@@ -19,6 +19,7 @@ export class TerritoryMap {
   streetList:OsmStreet[] = [];
   residentialUnits:ResidentialUnit[] = [];
   url:string='';
+  foreignLanguageGroup:boolean=false;
 }
 
 export enum Personas {

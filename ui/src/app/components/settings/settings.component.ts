@@ -24,6 +24,14 @@ export class SettingsComponent implements OnInit {
   note = new FormControl('');
   includeForeignLanguageGroup = new FormControl(false);
   foreignLanguageGroupName = new FormControl('');
+  defaultFillColor = new FormControl('');
+  defaultStrokeColor = new FormControl('');
+  defaultTextFillColor = new FormControl('');
+  defaultTextStrokeColor = new FormControl('');
+  foreignFillColor = new FormControl('');
+  foreignStrokeColor = new FormControl('');
+  foreignTextFillColor = new FormControl('');
+  foreignTextStrokeColor = new FormControl('');
 
   constructor(
     private dialogRef: MatDialogRef<SettingsComponent>,
@@ -38,6 +46,14 @@ export class SettingsComponent implements OnInit {
       this.note.setValue(this.congregation.notes)
       this.includeForeignLanguageGroup.setValue(this.congregation.includeForeignLanguageGroup)
       this.foreignLanguageGroupName.setValue(this.congregation.foreignLanguageGroupName)
+      this.defaultFillColor.setValue(this.congregation.defaultFillColor)
+      this.defaultStrokeColor.setValue(this.congregation.defaultStrokeColor)
+      this.defaultTextFillColor.setValue(this.congregation.defaultTextFillColor)
+      this.defaultTextStrokeColor.setValue(this.congregation.defaultTextStrokeColor)
+      this.foreignFillColor.setValue(this.congregation.foreignFillColor)
+      this.foreignStrokeColor.setValue(this.congregation.foreignStrokeColor)
+      this.foreignTextFillColor.setValue(this.congregation.foreignTextFillColor)
+      this.foreignTextStrokeColor.setValue(this.congregation.foreignTextStrokeColor)
       console.log('SettingsComponent initialized')
     })
 
@@ -48,6 +64,14 @@ export class SettingsComponent implements OnInit {
     this.congregation.name = this.congregationName.value;
     this.congregation.includeForeignLanguageGroup = this.includeForeignLanguageGroup.value;
     this.congregation.foreignLanguageGroupName = this.foreignLanguageGroupName.value;
+    this.congregation.defaultFillColor = this.defaultFillColor.value;
+    this.congregation.defaultStrokeColor = this.defaultStrokeColor.value;
+    this.congregation.defaultTextFillColor = this.defaultTextFillColor.value;
+    this.congregation.defaultTextStrokeColor = this.defaultTextStrokeColor.value;
+    this.congregation.foreignFillColor = this.foreignFillColor.value;
+    this.congregation.foreignStrokeColor = this.foreignStrokeColor.value;
+    this.congregation.foreignTextFillColor = this.foreignTextFillColor.value;
+    this.congregation.foreignTextStrokeColor = this.foreignTextStrokeColor.value;
     this.mapService.saveCongregation(this.congregation).subscribe(()=> {
       this.toastr.success('Saved', 'Settings')
 

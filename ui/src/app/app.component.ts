@@ -54,6 +54,7 @@ export class AppComponent implements OnInit {
   territoryCustomNumber = new FormControl('');
   territoryCustomName = new FormControl('');
   preacherName = new FormControl('');
+  addAsForeignLanguageTerritory = new FormControl(false);
 
   congregation: Congregation | undefined;
   territoriesSorted: Territory[] = [];
@@ -77,6 +78,8 @@ export class AppComponent implements OnInit {
   appName = 'Final Approach Rust UI';
   version = '1.0.0';
   persona: string = localStorage.getItem('persona') || Personas.DESIGNER;
+  defaultMapColor: string = '0,100,0';
+  foreignMapColor: string = '183,0,255';
 
   constructor(
     private dialog: MatDialog,
@@ -159,6 +162,7 @@ export class AppComponent implements OnInit {
       this.territoryCustomNumber.setValue(this.lastSelectedFeature.get('territoryNumber'));
       this.territoryCustomName.setValue(this.lastSelectedFeature.get('territoryName'));
       this.note.setValue(this.lastSelectedFeature.get('note'));
+      this.addAsForeignLanguageTerritory.setValue(this.lastSelectedFeature.get('foreignLanguageGroup'));
       this.vectorLayer.changed();
     });
 
@@ -287,7 +291,15 @@ export class AppComponent implements OnInit {
     } else if (feature.get('imported') && this.hideImportedFeature) {
       style = new Style({});
     } else if (feature.get('draft') == false) {
-      style = this.createStyle([0, 0, 255, 0.1],[0, 100, 0, 0.5],strokeWidth,'#007700','#fff',2);
+      if (feature.get('foreignLanguageGroup')) {
+        let ffc = this.getColor(this.congregation.foreignFillColor)
+        let fsc = this.getColor(this.congregation.foreignStrokeColor)
+        style = this.createStyle([ffc[0],ffc[1],ffc[2],  0.1],[fsc[0],fsc[1],fsc[2], 0.5],strokeWidth,this.congregation.foreignTextFillColor,this.congregation.foreignTextStrokeColor,2);
+      } else {
+        let ffc = this.getColor(this.congregation.defaultFillColor)
+        let fsc = this.getColor(this.congregation.defaultStrokeColor)
+        style = this.createStyle([ffc[0],ffc[1],ffc[2],  0.1],[fsc[0],fsc[1],fsc[2], 0.5],strokeWidth,this.congregation.defaultTextFillColor,this.congregation.defaultTextStrokeColor,2);
+      }
     }
 
     if (this.map.getView().getZoom() > 17) {
@@ -300,6 +312,17 @@ export class AppComponent implements OnInit {
       style.getText().setText('');
     }
     return style;
+  }
+
+  getColor(hexColor:string):number[] {
+    let color:number[] = [];
+    const hex = hexColor.replace('#', '');
+
+    color.push(parseInt(hex.substring(0, 2), 16));
+    color.push(parseInt(hex.substring(2, 4), 16));
+    color.push(parseInt(hex.substring(4, 6), 16));
+
+    return color;
   }
 
   openDialog(): void {
@@ -502,7 +525,8 @@ export class AppComponent implements OnInit {
       lastUpdate: new Date(),
       streetList: [],
       residentialUnits: [],
-      url: ''
+      url: '',
+      foreignLanguageGroup: feature.get('foreignLanguageGroup')
     }
     return mapDesign;
   }
@@ -556,9 +580,9 @@ export class AppComponent implements OnInit {
         additionalNote: mapDesign.additionalNote,
         note: mapDesign.note,
         draft: mapDesign.draft,
+        foreignLanguageGroup: mapDesign.foreignLanguageGroup,
         imported: false // Set to true if the feature is imported
       });
-      feature.set('name', feature.get('territoryName'));
       this.source.addFeature(feature);
     }
   }
@@ -566,27 +590,28 @@ export class AppComponent implements OnInit {
   protected saveMapForTerritory() {
     let mapDesign:TerritoryMap = this.generateMapDesignFromFeature(this.lastSelectedFeature);
     mapDesign.draft = false;
-
     mapDesign.territoryNumber = this.territoryCustomNumber.value;
     mapDesign.territoryName = this.territoryCustomName.value;
     mapDesign.additionalNote = this.note.value;
+    mapDesign.foreignLanguageGroup = this.addAsForeignLanguageTerritory.value;
     // ensure that the feature is deleted from the backend, if it exists, and it will be replaced by the new one
     this.lastSelectedFeature.set('deleteID', this.lastSelectedFeature.get('territoryNumber'));
     // then a new real number is assigned to the feature
     this.lastSelectedFeature.set('territoryNumber', mapDesign.territoryNumber);
     this.lastSelectedFeature.set('territoryName', mapDesign.territoryName);
     this.lastSelectedFeature.set('additionalNote', mapDesign.additionalNote);
+    this.lastSelectedFeature.set('foreignLanguageGroup', mapDesign.foreignLanguageGroup);
     this.lastSelectedFeature.set('draft', true);
 
     let territory = new Territory();
     territory.number = mapDesign.territoryNumber;
     territory.name = mapDesign.territoryName;
+    territory.foreignLanguageGroup = mapDesign.foreignLanguageGroup;
 
     this.mapService.saveTerritory(territory).subscribe(()=>{
       this.toastr.success('Territory saved successfully');
     })
 
-    console.log(mapDesign)
   }
 
   private initKmlDragAndDrop(): void {
@@ -728,6 +753,14 @@ export class AppComponent implements OnInit {
       console.log(error)
       this.toastr.error('Error loading congregation:', error);
     }});
+
+    this.source.getFeatures().forEach(feature => {
+      this.featureFunction(feature);
+    })
+    this.vectorLayer = new VectorLayer({
+      source: this.source,
+      style: this.featureFunction.bind(this)
+    });
 
     const now:Date = new Date();
     const eightMonthsAgo:Date = new Date(now.getFullYear(), now.getMonth() - 8, now.getDate());
@@ -1228,5 +1261,12 @@ export class AppComponent implements OnInit {
       });
 
     this.mapService.saveTerritory(this.lastSelectedTerritory).subscribe(() => {});
+  }
+
+  protected getForeignStyleColour() {
+    if (this.addAsForeignLanguageTerritory.value) {
+      return "background-color: rgba(183 0 255 / 0.66)!important;"
+    }
+    return "background-color: rgba(0,128,255,0.66)!important;"
   }
 }
