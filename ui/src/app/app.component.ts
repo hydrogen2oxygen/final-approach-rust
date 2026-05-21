@@ -325,6 +325,23 @@ export class AppComponent implements OnInit {
     return color;
   }
 
+  getRGBfromHex(hexColor:string):string {
+    const hex = hexColor.replace('#', '');
+
+    let r = parseInt(hex.substring(0, 2), 16);
+    let g = parseInt(hex.substring(2, 4), 16);
+    let b = parseInt(hex.substring(4, 6), 16);
+
+    return `${r} ${g} ${b}`;
+  }
+
+  getRGBfillByType():string {
+    if (this.lastSelectedTerritory.foreignLanguageGroup) {
+      return this.getRGBfromHex(this.congregation.foreignFillColor)
+    }
+    return this.getRGBfromHex(this.congregation.defaultFillColor)
+  }
+
   openDialog(): void {
     this.dialog.open(InfoDialogComponent, {
       width: '1200px',
@@ -746,6 +763,14 @@ export class AppComponent implements OnInit {
       if (!this.congregation) {
         console.log("No Congregation found. Creating a new one")
         this.congregation = new Congregation();
+        this.congregation.defaultFillColor = "#00ff62";
+        this.congregation.defaultStrokeColor = "#088000";
+        this.congregation.defaultTextFillColor = "#194700";
+        this.congregation.defaultTextStrokeColor = "#ffffff";
+        this.congregation.foreignFillColor = "#4a70e3";
+        this.congregation.foreignStrokeColor = "#424bcd";
+        this.congregation.foreignTextFillColor = "#6c009e";
+        this.congregation.foreignTextStrokeColor = "#ffffff";
         this.mapService.saveCongregation(this.congregation).subscribe(()=> console.log("Congregation saved"))
       }
     },
