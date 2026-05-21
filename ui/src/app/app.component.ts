@@ -325,7 +325,7 @@ export class AppComponent implements OnInit {
   }
 
   openPersonaDialog(): void {
-    this.dialog.open(PersonaComponent, {
+    const dialogRef = this.dialog.open(PersonaComponent, {
       width: '1200px',
       minWidth: '500px',
       data: {
@@ -333,6 +333,15 @@ export class AppComponent implements OnInit {
         version: this.version,
         home: this.home
       }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (!result) {
+        return;
+      }
+
+      this.persona = result.persona;
+      console.log(result.persona);
     });
   }
 
