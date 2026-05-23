@@ -315,6 +315,9 @@ export class AppComponent implements OnInit {
   }
 
   getColor(hexColor:string):number[] {
+    if (!hexColor) {
+      return [0, 0, 0, 0.1];
+    }
     let color:number[] = [];
     const hex = hexColor.replace('#', '');
 
