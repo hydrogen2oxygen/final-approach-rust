@@ -111,7 +111,11 @@
   <div style="position: fixed; top: 1rem; right: 1rem; margin: 1rem; background-color: rgb({{getRGBfillByType()}} / 0.7); border-radius: 0.5rem; padding: 0.75rem;">
     <b style="color:white; text-shadow: 1px 1px 2px black">{{lastSelectedTerritory.number}} - {{lastSelectedTerritory.name}}</b> <button class="btn"><mat-icon>home_filled</mat-icon></button><br/>
     <div class="input-group input-group-sm mb-0 align-items-center">
-      <input class="form-control" list="datalistOptions" placeholder="Type to search..." [formControl]="preacherName"> <button class="btn btn-primary" (click)="assignPreacher()">Assign</button>
+      <input class="form-control" list="datalistOptions" placeholder="Type to search..." [formControl]="preacherName">
+      <button class="btn btn-success" (click)="assignPreacher()">Assign</button>
+      @if (lastSelectedTerritory.registryEntryList.length > 0) {
+        <button class="btn btn-primary" (click)="register()">Register</button>
+      }
       <datalist id="datalistOptions">
         @for (p of congregation.preacherList; track p) {
         <option value="{{p.name}}">
@@ -128,17 +132,50 @@
         </thead>
         <tbody>
           @for (r of lastSelectedTerritory.registryEntryList; track r) {
-            <tr>
+            <tr [class.table-primary]="r.registration">
               <td>
-                <button class="btn-sm btn btn-danger btn-sm2" (click)="deleteRegistry(r)" title="delete">DEL</button>
+                <button
+                  class="btn-sm btn btn-danger btn-sm2"
+                  (click)="deleteRegistry(r)"
+                  title="delete">
+                  DEL
+                </button>
+              <td>
+                <input
+                  class="form-control form-control-sm"
+                  type="date"
+                  [ngModel]="toDateInputValue(r.assignDate)"
+                  (ngModelChange)="r.assignDate = fromDateInputValue($event); saveRegistryChange()">
               </td>
-              <td>{{r.assignDate|date}}</td>
-              <td>{{r.returnDate|date}}</td>
-              <td>{{r.preacher.name}}</td>
+
+              <td>
+                @if (r.returnDate || editingReturnDate === r) {
+                  <input
+                    class="form-control form-control-sm"
+                    type="date"
+                    [ngModel]="toDateInputValue(r.returnDate)"
+                    (ngModelChange)="r.returnDate = fromDateInputValue($event)"
+                    (blur)="editingReturnDate = null; saveRegistryChange()">
+                } @else {
+                  <div
+                    class="empty-date-cell"
+                    (click)="editingReturnDate = r">
+                  </div>
+                }
+              </td>
+
+              <td>
+                <input
+                  class="form-control form-control-sm"
+                  type="text"
+                  [(ngModel)]="r.preacher.name"
+                  (blur)="saveRegistryChange()">
+              </td>
             </tr>
           }
         </tbody>
       </table>
+
     }
   </div>
 }

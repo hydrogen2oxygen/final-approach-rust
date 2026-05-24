@@ -10,3 +10,15 @@
   font-size: 12px;
   line-height: 16px;
 }
+
+.empty-date-cell {
+  min-height: 2rem;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+}
+
+.empty-date-cell:hover {
+  background: #f8f9fa;
+}

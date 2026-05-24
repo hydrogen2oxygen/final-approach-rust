@@ -40,7 +40,8 @@ export class Territory {
   date:Date = new Date();
   registryEntryList:RegistryEntry[] = [];
   notes:string[]=[];
-  noContacts:boolean=false;
+  doNotVisitList:DoNotVisit[]=[];
+  noContacts:boolean=false; // a territory with currently no contacts to visit
   archive:boolean=false;
   url:string | null='';
   uuid:string|undefined;
@@ -48,6 +49,14 @@ export class Territory {
   exported:boolean=false;
   mapExist:boolean=false;
   foreignLanguageGroup:boolean=false;
+}
+
+export class DoNotVisit {
+  street:string = '';
+  houseNumber:string = '';
+  doorbell:string = ''; // the position of the doorbell, avoiding mentioning the name itself
+  name:string = ''; // the name of the person who should not be visited (then this will be cut out of the information, especially if too long ... "Thomas Maier" becomes "T. M.")
+  date:Date = new Date();
 }
 
 export class RegistryEntry {

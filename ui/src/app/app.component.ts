@@ -15,7 +15,7 @@ import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import {Fill, Stroke, Style, Text} from 'ol/style';
 import {FeatureLike} from 'ol/Feature';
-import {FormControl, ReactiveFormsModule} from '@angular/forms';
+import {FormControl, FormsModule, ReactiveFormsModule} from '@angular/forms';
 import {DragAndDrop, Draw, Modify, Select} from 'ol/interaction';
 import {GeoJSON, GPX, IGC, KML, TopoJSON, WKT} from 'ol/format';
 import {Feature} from 'ol';
@@ -34,9 +34,10 @@ import {SettingsComponent} from './components/settings/settings.component';
 import {getCenter} from 'ol/extent';
 import {transform} from 'ol/proj';
 
+
 @Component({
   selector: 'app-root',
-  imports: [CommonModule, MatButtonModule, MatDialogModule, MatIconModule, ReactiveFormsModule],
+  imports: [CommonModule, MatButtonModule, MatDialogModule, MatIconModule, ReactiveFormsModule, FormsModule],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
 })
@@ -57,6 +58,7 @@ export class AppComponent implements OnInit {
   territoryCustomName = new FormControl('');
   preacherName = new FormControl('');
   addAsForeignLanguageTerritory = new FormControl(false);
+  editingReturnDate: RegistryEntry | null = null;
 
   congregation: Congregation | undefined;
   territoriesSorted: Territory[] = [];
@@ -136,6 +138,8 @@ export class AppComponent implements OnInit {
     this.map.addInteraction(this.selectInteraction);
     this.initKmlDragAndDrop();
     this.selectInteraction.on('select', e => {
+
+      this.preacherName.setValue(undefined)
 
       e.deselected.forEach(feature => {
         feature.set('selected', false);
@@ -1243,24 +1247,46 @@ export class AppComponent implements OnInit {
   }
 
   protected assignPreacher() {
-    console.log("Assigning Preacher", this.preacherName.value)
     let preacher = this.congregation.preacherList.find(p => p.name == this.preacherName.value)
-    console.log(preacher)
     if (!preacher) {
-      console.log("Preacher not found")
       preacher = new Preacher();
       preacher.name = this.preacherName.value;
       this.congregation.preacherList.push(preacher);
       this.mapService.saveCongregation(this.congregation).subscribe(() => {
       })
       this.preacherName.setValue(undefined);
-      console.log(this.congregation.preacherList)
     }
     let territory = this.territoriesSorted.find(t => t.number == this.lastSelectedFeature.get('territoryNumber'));
     if (territory) {
       let registry = new RegistryEntry();
       registry.preacher = preacher;
       registry.returnDate = undefined;
+
+      const openEntry = territory.registryEntryList.find(e => !e.returnDate);
+
+      if (openEntry) {
+        openEntry.returnDate = new Date();
+      }
+
+      territory.registryEntryList.unshift(registry);
+      if (territory.registryEntryList.length > 20) {
+        territory.registryEntryList.pop();
+      }
+      this.lastSelectedTerritory = territory;
+      this.mapService.saveTerritory(territory).subscribe(() => {
+      });
+    }
+  }
+
+  protected register() {
+
+    let territory = this.territoriesSorted.find(t => t.number == this.lastSelectedFeature.get('territoryNumber'));
+    if (territory) {
+      let lastEntry = territory.registryEntryList[0];
+      let registry = new RegistryEntry();
+      registry.preacher = lastEntry.preacher;
+      registry.returnDate = undefined;
+      registry.registration = true;
 
       const openEntry = territory.registryEntryList.find(e => !e.returnDate);
 
@@ -1550,4 +1576,37 @@ export class AppComponent implements OnInit {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&apos;');
   }
+
+  protected toDateInputValue(date: Date | string | undefined | null): string {
+    if (!date) {
+      return '';
+    }
+
+    const d = new Date(date);
+
+    if (isNaN(d.getTime())) {
+      return '';
+    }
+
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+  }
+
+  protected fromDateInputValue(value: string): Date | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    return new Date(value + 'T00:00:00');
+  }
+
+  protected saveRegistryChange() {
+    this.mapService.saveTerritory(this.lastSelectedTerritory).subscribe(() => {});
+  }
+
+
+
 }
