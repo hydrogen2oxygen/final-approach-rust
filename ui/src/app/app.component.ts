@@ -19,34 +19,36 @@ import {FormControl, ReactiveFormsModule} from '@angular/forms';
 import {DragAndDrop, Draw, Modify, Select} from 'ol/interaction';
 import {GeoJSON, GPX, IGC, KML, TopoJSON, WKT} from 'ol/format';
 import {Feature} from 'ol';
-import {TerritoryMap,Personas} from './domains/MapDesign';
-import {Geometry} from 'ol/geom';
+import {TerritoryMap, Personas} from './domains/MapDesign';
+import {Geometry, MultiPolygon, Polygon} from 'ol/geom';
 import {DocumentationComponent} from './components/documentation/documentation.component';
 import {PersonaComponent} from './components/persona/persona.component';
 import {Coordinate} from 'ol/coordinate';
 import {toLonLat} from 'ol/proj';
 import {createEmpty, extend, isEmpty} from 'ol/extent';
 import {Congregation, Preacher, RegistryEntry, Territory} from './domains/Congregation';
-import { jsPDF } from 'jspdf';
-import { buffer } from 'ol/extent';
-import { click, shiftKeyOnly } from 'ol/events/condition';
+import {jsPDF} from 'jspdf';
+import {buffer} from 'ol/extent';
+import {click, shiftKeyOnly} from 'ol/events/condition';
 import {SettingsComponent} from './components/settings/settings.component';
+import {getCenter} from 'ol/extent';
+import {transform} from 'ol/proj';
 
 @Component({
-    selector: 'app-root',
-    imports: [CommonModule, MatButtonModule, MatDialogModule, MatIconModule, ReactiveFormsModule],
-    templateUrl: './app.component.html',
-    styleUrls: ['./app.component.scss']
+  selector: 'app-root',
+  imports: [CommonModule, MatButtonModule, MatDialogModule, MatIconModule, ReactiveFormsModule],
+  templateUrl: './app.component.html',
+  styleUrls: ['./app.component.scss']
 })
 export class AppComponent implements OnInit {
 
   map: Map | undefined;
   view: View = new View();
   osmLayer: TileLayer | undefined;
-  vectorLayer:VectorLayer<any>=new VectorLayer<any>();
+  vectorLayer: VectorLayer<any> = new VectorLayer<any>();
   source = new VectorSource();
-  showOsmData:boolean = false;
-  hideImportedFeature:boolean = false;
+  showOsmData: boolean = false;
+  hideImportedFeature: boolean = false;
   home: any;
   note = new FormControl('');
   territoryNumber = new FormControl('');
@@ -58,12 +60,12 @@ export class AppComponent implements OnInit {
 
   congregation: Congregation | undefined;
   territoriesSorted: Territory[] = [];
-  territoriesNoContacts:Territory[] = [];
-  territoriesOlder8Months:Territory[] = [];
-  territoriesOlder4Months:Territory[] = [];
-  territoriesAssigned:Territory[] = [];
-  territoriesToBeAssigned:Territory[] = [];
-  territoriesArchived:Territory[] = [];
+  territoriesNoContacts: Territory[] = [];
+  territoriesOlder8Months: Territory[] = [];
+  territoriesOlder4Months: Territory[] = [];
+  territoriesAssigned: Territory[] = [];
+  territoriesToBeAssigned: Territory[] = [];
+  territoriesArchived: Territory[] = [];
 
   selectInteraction = new Select();
   dragAndDropInteraction: DragAndDrop | undefined;
@@ -86,16 +88,17 @@ export class AppComponent implements OnInit {
     private mapService: MapService,
     private appService: AppService,
     private toastr: ToastrService
-  ) {}
+  ) {
+  }
 
   ngOnInit(): void {
 
     this.osmLayer = new TileLayer({
-          source: new OSM({
-            crossOrigin: 'anonymous',
-            attributions: []
-          })
-        });
+      source: new OSM({
+        crossOrigin: 'anonymous',
+        attributions: []
+      })
+    });
     this.vectorLayer = new VectorLayer({
       source: this.source,
       style: this.featureFunction.bind(this)
@@ -158,7 +161,7 @@ export class AppComponent implements OnInit {
       }
 
       this.lastSelectedFeature = selectedFeatures[selectedFeatures.length - 1];
-      this.lastSelectedTerritory = this.territoriesSorted.find( t => t.number === this.lastSelectedFeature.get('territoryNumber'))
+      this.lastSelectedTerritory = this.territoriesSorted.find(t => t.number === this.lastSelectedFeature.get('territoryNumber'))
       this.territoryCustomNumber.setValue(this.lastSelectedFeature.get('territoryNumber'));
       this.territoryCustomName.setValue(this.lastSelectedFeature.get('territoryName'));
       this.note.setValue(this.lastSelectedFeature.get('note'));
@@ -185,7 +188,16 @@ export class AppComponent implements OnInit {
         this.editFeature();
       } else if (event.ctrlKey && event.key === 'g') {
         event.preventDefault();
-        this.openGoogleTab();
+        if (this.lastSelectedFeature) {
+          this.openGoogleEarthForFeature(this.lastSelectedFeature)
+        } else {
+          this.openGoogleTab();
+        }
+      } else if (event.ctrlKey && event.key === 'k') {
+        event.preventDefault();
+        if (this.lastSelectedFeature) {
+          this.downloadSelectedAsGoogleEarthKml()
+        }
       } else if (this.persona == Personas.DESIGNER && event.key === 'Delete' && this.lastSelectedFeature) {
         event.preventDefault();
         this.deleteFeature();
@@ -219,7 +231,7 @@ export class AppComponent implements OnInit {
       this.persona = Personas.PREACHER
       // The map is loaded from the URL parameter, id=<id>,folder=<folder>
       const path = urlParams.get('path');
-      this.mapService.loadMapDesignById(id, path).subscribe( (mapDesign:TerritoryMap) => {
+      this.mapService.loadMapDesignById(id, path).subscribe((mapDesign: TerritoryMap) => {
         this.loadTerritoryMap(mapDesign);
       });
     } else {
@@ -235,7 +247,7 @@ export class AppComponent implements OnInit {
     }
   }
 
-  public createStyle(fillColor:any = [0, 0, 0, 0.1], strokeColor:any = [255, 0, 0, 0.5], strokeWidth:number = 5, textFillColor:string = '#000', textStrokeColor:string = '#fff', textStrokeWidth:number = 3):Style {
+  public createStyle(fillColor: any = [0, 0, 0, 0.1], strokeColor: any = [255, 0, 0, 0.5], strokeWidth: number = 5, textFillColor: string = '#000', textStrokeColor: string = '#fff', textStrokeWidth: number = 3): Style {
     return new Style({
       fill: new Fill({
         color: fillColor
@@ -259,7 +271,7 @@ export class AppComponent implements OnInit {
     });
   }
 
-  featureFunction(featureLike:FeatureLike) :Style {
+  featureFunction(featureLike: FeatureLike): Style {
 
     let style = this.createStyle();
 
@@ -281,24 +293,24 @@ export class AppComponent implements OnInit {
     if (strokeWidth > 6) strokeWidth = 6
 
     if (feature.get('selected')) {
-      style = this.createStyle([0, 255, 0, 0.05],[255, 0, 0, 0.5],strokeWidth,'#001010','#fff',2);
+      style = this.createStyle([0, 255, 0, 0.05], [255, 0, 0, 0.5], strokeWidth, '#001010', '#fff', 2);
     } else if (!this.showOsmData && feature.get('residentialUnit')) {
       style = new Style({});
     } else if (this.showOsmData && feature.get('residentialUnit')) {
-      style = this.createStyle([0, 255, 0, 0.05],[0, 0, 255, 0.05],strokeWidth,'#00c4ff','#fff',2);
+      style = this.createStyle([0, 255, 0, 0.05], [0, 0, 255, 0.05], strokeWidth, '#00c4ff', '#fff', 2);
     } else if (feature.get('imported') && !this.hideImportedFeature) {
-      style = this.createStyle([0, 0, 0, 0.05],[255, 0, 0, 0.25],strokeWidth,'#000','#fff',3);
+      style = this.createStyle([0, 0, 0, 0.05], [255, 0, 0, 0.25], strokeWidth, '#000', '#fff', 3);
     } else if (feature.get('imported') && this.hideImportedFeature) {
       style = new Style({});
     } else if (feature.get('draft') == false) {
       if (feature.get('foreignLanguageGroup')) {
         let ffc = this.getColor(this.congregation.foreignFillColor)
         let fsc = this.getColor(this.congregation.foreignStrokeColor)
-        style = this.createStyle([ffc[0],ffc[1],ffc[2],  0.1],[fsc[0],fsc[1],fsc[2], 0.5],strokeWidth,this.congregation.foreignTextFillColor,this.congregation.foreignTextStrokeColor,2);
+        style = this.createStyle([ffc[0], ffc[1], ffc[2], 0.1], [fsc[0], fsc[1], fsc[2], 0.5], strokeWidth, this.congregation.foreignTextFillColor, this.congregation.foreignTextStrokeColor, 2);
       } else {
         let ffc = this.getColor(this.congregation.defaultFillColor)
         let fsc = this.getColor(this.congregation.defaultStrokeColor)
-        style = this.createStyle([ffc[0],ffc[1],ffc[2],  0.1],[fsc[0],fsc[1],fsc[2], 0.5],strokeWidth,this.congregation.defaultTextFillColor,this.congregation.defaultTextStrokeColor,2);
+        style = this.createStyle([ffc[0], ffc[1], ffc[2], 0.1], [fsc[0], fsc[1], fsc[2], 0.5], strokeWidth, this.congregation.defaultTextFillColor, this.congregation.defaultTextStrokeColor, 2);
       }
     }
 
@@ -306,7 +318,7 @@ export class AppComponent implements OnInit {
       style.getText().setText(feature.get('territoryNumber') + ' ' + feature.get('territoryName') + "\n" + feature.get('additionalNote'));
     } else if (this.map.getView().getZoom() > 16) {
       style.getText().setText(feature.get('territoryNumber') + ' ' + feature.get('territoryName'));
-    }  else if (this.map.getView().getZoom() > 15) {
+    } else if (this.map.getView().getZoom() > 15) {
       style.getText().setText(feature.get('territoryNumber'));
     } else {
       style.getText().setText('');
@@ -314,11 +326,11 @@ export class AppComponent implements OnInit {
     return style;
   }
 
-  getColor(hexColor:string):number[] {
+  getColor(hexColor: string): number[] {
     if (!hexColor) {
       return [0, 0, 0, 0.1];
     }
-    let color:number[] = [];
+    let color: number[] = [];
     const hex = hexColor.replace('#', '');
 
     color.push(parseInt(hex.substring(0, 2), 16));
@@ -328,7 +340,7 @@ export class AppComponent implements OnInit {
     return color;
   }
 
-  getRGBfromHex(hexColor:string):string {
+  getRGBfromHex(hexColor: string): string {
     const hex = hexColor.replace('#', '');
 
     let r = parseInt(hex.substring(0, 2), 16);
@@ -338,7 +350,7 @@ export class AppComponent implements OnInit {
     return `${r} ${g} ${b}`;
   }
 
-  getRGBfillByType():string {
+  getRGBfillByType(): string {
     if (this.lastSelectedTerritory.foreignLanguageGroup) {
       return this.getRGBfromHex(this.congregation.foreignFillColor)
     }
@@ -398,7 +410,8 @@ export class AppComponent implements OnInit {
           if (this.congregation) {
             this.congregation.homeCoordinates = home.coordinates;
             this.congregation.homeZoom = home.zoom;
-            this.mapService.saveCongregation(this.congregation).subscribe(()=>{});
+            this.mapService.saveCongregation(this.congregation).subscribe(() => {
+            });
           }
         }
       });
@@ -502,7 +515,7 @@ export class AppComponent implements OnInit {
 
       if (feature.get('deleteID')) {
         this.mapService.deleteMapDesign(feature.get('deleteID')).subscribe(() => {
-          this.toastr.warning("mapDesign with id: " + feature.get('deleteID')  +" deleted successfully");
+          this.toastr.warning("mapDesign with id: " + feature.get('deleteID') + " deleted successfully");
         })
       }
 
@@ -532,7 +545,7 @@ export class AppComponent implements OnInit {
     });
   }
 
-  private generateMapDesignFromFeature(feature:Feature<Geometry>) {
+  private generateMapDesignFromFeature(feature: Feature<Geometry>) {
     let mapDesign: TerritoryMap = {
       draft: false,
       territoryNumber: feature.get('territoryNumber') || '',
@@ -608,7 +621,7 @@ export class AppComponent implements OnInit {
   }
 
   protected saveMapForTerritory() {
-    let mapDesign:TerritoryMap = this.generateMapDesignFromFeature(this.lastSelectedFeature);
+    let mapDesign: TerritoryMap = this.generateMapDesignFromFeature(this.lastSelectedFeature);
     mapDesign.draft = false;
     mapDesign.territoryNumber = this.territoryCustomNumber.value;
     mapDesign.territoryName = this.territoryCustomName.value;
@@ -628,7 +641,7 @@ export class AppComponent implements OnInit {
     territory.name = mapDesign.territoryName;
     territory.foreignLanguageGroup = mapDesign.foreignLanguageGroup;
 
-    this.mapService.saveTerritory(territory).subscribe(()=>{
+    this.mapService.saveTerritory(territory).subscribe(() => {
       this.toastr.success('Territory saved successfully');
     })
 
@@ -759,28 +772,30 @@ export class AppComponent implements OnInit {
     this.toastr.success(`${features.length} KML feature(s) imported`);
   }
 
-  reloadCongregationData():void {
+  reloadCongregationData(): void {
 
-    this.mapService.loadCongregation().subscribe({"next": congregation => {
-      this.congregation = congregation[0];
-      if (!this.congregation) {
-        console.log("No Congregation found. Creating a new one")
-        this.congregation = new Congregation();
-        this.congregation.defaultFillColor = "#00ff62";
-        this.congregation.defaultStrokeColor = "#088000";
-        this.congregation.defaultTextFillColor = "#194700";
-        this.congregation.defaultTextStrokeColor = "#ffffff";
-        this.congregation.foreignFillColor = "#4a70e3";
-        this.congregation.foreignStrokeColor = "#424bcd";
-        this.congregation.foreignTextFillColor = "#6c009e";
-        this.congregation.foreignTextStrokeColor = "#ffffff";
-        this.mapService.saveCongregation(this.congregation).subscribe(()=> console.log("Congregation saved"))
+    this.mapService.loadCongregation().subscribe({
+      "next": congregation => {
+        this.congregation = congregation[0];
+        if (!this.congregation) {
+          console.log("No Congregation found. Creating a new one")
+          this.congregation = new Congregation();
+          this.congregation.defaultFillColor = "#00ff62";
+          this.congregation.defaultStrokeColor = "#088000";
+          this.congregation.defaultTextFillColor = "#194700";
+          this.congregation.defaultTextStrokeColor = "#ffffff";
+          this.congregation.foreignFillColor = "#4a70e3";
+          this.congregation.foreignStrokeColor = "#424bcd";
+          this.congregation.foreignTextFillColor = "#6c009e";
+          this.congregation.foreignTextStrokeColor = "#ffffff";
+          this.mapService.saveCongregation(this.congregation).subscribe(() => console.log("Congregation saved"))
+        }
+      },
+      "error": (error) => {
+        console.log(error)
+        this.toastr.error('Error loading congregation:', error);
       }
-    },
-    "error": (error) => {
-      console.log(error)
-      this.toastr.error('Error loading congregation:', error);
-    }});
+    });
 
     this.source.getFeatures().forEach(feature => {
       this.featureFunction(feature);
@@ -790,18 +805,18 @@ export class AppComponent implements OnInit {
       style: this.featureFunction.bind(this)
     });
 
-    const now:Date = new Date();
-    const eightMonthsAgo:Date = new Date(now.getFullYear(), now.getMonth() - 8, now.getDate());
-    const fourMonthsAgo:Date = new Date(now.getFullYear(), now.getMonth() - 4, now.getDate());
+    const now: Date = new Date();
+    const eightMonthsAgo: Date = new Date(now.getFullYear(), now.getMonth() - 8, now.getDate());
+    const fourMonthsAgo: Date = new Date(now.getFullYear(), now.getMonth() - 4, now.getDate());
 
     this.mapService.loadTerritories().subscribe(territories => {
 
       this.territoriesSorted = territories.sort((a, b) => (a.number > b.number ? 1 : -1));
 
-      territories.forEach((t:Territory) => {
+      territories.forEach((t: Territory) => {
         if (t.registryEntryList.length == 0) {
           this.territoriesToBeAssigned.push(t);
-        } else if (t.noContacts && !t.archive){
+        } else if (t.noContacts && !t.archive) {
           this.territoriesNoContacts.push(t);
         } else if (t.archive) {
           this.territoriesArchived.push(t);
@@ -1128,7 +1143,7 @@ export class AppComponent implements OnInit {
     const territoryName = featureToRender.get('territoryName') || '';
     const title = `${territoryNumber} ${territoryName}`.trim() || 'Gebietskarte';
 
-    return { title, image };
+    return {title, image};
   }
 
   async exportSelectedFeaturesAsGridPdf(): Promise<void> {
@@ -1172,10 +1187,10 @@ export class AppComponent implements OnInit {
       const imageTopOffset = 7;
 
       const slots = [
-        { x: outerMargin, y: outerMargin },
-        { x: outerMargin + cellWidth + gap, y: outerMargin },
-        { x: outerMargin, y: outerMargin + cellHeight + gap },
-        { x: outerMargin + cellWidth + gap, y: outerMargin + cellHeight + gap }
+        {x: outerMargin, y: outerMargin},
+        {x: outerMargin + cellWidth + gap, y: outerMargin},
+        {x: outerMargin, y: outerMargin + cellHeight + gap},
+        {x: outerMargin + cellWidth + gap, y: outerMargin + cellHeight + gap}
       ];
 
       renderedItems.forEach((item, index) => {
@@ -1236,7 +1251,8 @@ export class AppComponent implements OnInit {
       preacher = new Preacher();
       preacher.name = this.preacherName.value;
       this.congregation.preacherList.push(preacher);
-      this.mapService.saveCongregation(this.congregation).subscribe(()=>{})
+      this.mapService.saveCongregation(this.congregation).subscribe(() => {
+      })
       this.preacherName.setValue(undefined);
       console.log(this.congregation.preacherList)
     }
@@ -1257,7 +1273,8 @@ export class AppComponent implements OnInit {
         territory.registryEntryList.pop();
       }
       this.lastSelectedTerritory = territory;
-      this.mapService.saveTerritory(territory).subscribe(()=> {});
+      this.mapService.saveTerritory(territory).subscribe(() => {
+      });
     }
   }
 
@@ -1288,7 +1305,8 @@ export class AppComponent implements OnInit {
         return !(sameDate && samePreacher);
       });
 
-    this.mapService.saveTerritory(this.lastSelectedTerritory).subscribe(() => {});
+    this.mapService.saveTerritory(this.lastSelectedTerritory).subscribe(() => {
+    });
   }
 
   protected getForeignStyleColour() {
@@ -1296,5 +1314,240 @@ export class AppComponent implements OnInit {
       return "background-color: rgba(183 0 255 / 0.66)!important;"
     }
     return "background-color: rgba(0,128,255,0.66)!important;"
+  }
+
+  openGoogleEarthForFeature(feature: Feature) {
+    const geometry = feature.getGeometry();
+    const extent = geometry.getExtent();
+    const center = getCenter(extent);
+    const [lon, lat] = transform(center, 'EPSG:3857', 'EPSG:4326');
+
+    const url = `https://earth.google.com/web/@${lat},${lon},1000a,0d,35y,0h,0t,0r`;
+    window.open(url, '_blank');
+  }
+
+  downloadSelectedAsGoogleEarthKml() {
+    let features = this.selectInteraction.getFeatures().getArray();
+
+    if (!features || features.length === 0) {
+      features = this.vectorLayer.getSource().getFeatures();
+    }
+
+    const kml = this.createGoogleEarthKml(features, 'Gebiete');
+
+    const blob = new Blob([kml], {
+      type: 'application/vnd.google-earth.kml+xml;charset=utf-8'
+    });
+
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'gebiete.kml';
+    document.body.appendChild(a);
+    a.click();
+
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  private createGoogleEarthKml(features: Feature[], documentName: string): string {
+    const placemarks = features
+      .map((feature, index) => this.featureToKmlPlacemark(feature, index))
+      .join('\n');
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+  <name>${this.escapeXml(documentName)}</name>
+
+  ${placemarks}
+
+</Document>
+</kml>`;
+  }
+
+  private featureToKmlPlacemark(feature: Feature, index: number): string {
+    const geometry = feature.getGeometry();
+
+    if (!geometry) {
+      return '';
+    }
+
+    const name =
+      feature.get('name') ||
+      feature.get('territoryName') ||
+      feature.get('territoryNumber') ||
+      `Gebiet ${index + 1}`;
+
+    const style = this.getFeatureKmlStyle(feature);
+
+    const styleId = `style-${index}`;
+
+    let geometryKml = '';
+
+    if (geometry instanceof Polygon) {
+      geometryKml = this.polygonToKml(geometry);
+    } else if (geometry instanceof MultiPolygon) {
+      geometryKml = this.multiPolygonToKml(geometry);
+    } else {
+      return '';
+    }
+
+    return `
+<Style id="${styleId}">
+  <LineStyle>
+    <color>${style.strokeColor}</color>
+    <width>${style.strokeWidth}</width>
+  </LineStyle>
+  <PolyStyle>
+    <color>${style.fillColor}</color>
+    <fill>1</fill>
+    <outline>1</outline>
+  </PolyStyle>
+</Style>
+
+<Placemark>
+  <name>${this.escapeXml(String(name))}</name>
+  <styleUrl>#${styleId}</styleUrl>
+  ${geometryKml}
+</Placemark>`;
+  }
+
+  private getFeatureKmlStyle(feature: Feature): {
+    strokeColor: string;
+    fillColor: string;
+    strokeWidth: number;
+  } {
+    let strokeCss = '#ff0000';
+    let fillCss = 'rgba(255, 0, 0, 0.18)';
+    let strokeWidth = 4;
+
+    const featureStyle = feature.getStyle();
+
+    if (featureStyle instanceof Style) {
+      const stroke = featureStyle.getStroke();
+      const fill = featureStyle.getFill();
+
+      if (stroke) {
+        strokeCss = String(stroke.getColor() || strokeCss);
+        strokeWidth = stroke.getWidth() || strokeWidth;
+      }
+
+      if (fill) {
+        fillCss = String(fill.getColor() || fillCss);
+      }
+    }
+
+    return {
+      strokeColor: this.cssColorToKmlColor(strokeCss, 1.0),
+      fillColor: this.cssColorToKmlColor(fillCss, 0.18),
+      strokeWidth
+    };
+  }
+
+  private cssColorToKmlColor(color: string, fallbackAlpha: number): string {
+    let r = 255;
+    let g = 0;
+    let b = 0;
+    let a = fallbackAlpha;
+
+    if (color.startsWith('#')) {
+      const hex = color.replace('#', '');
+
+      if (hex.length === 6) {
+        r = parseInt(hex.substring(0, 2), 16);
+        g = parseInt(hex.substring(2, 4), 16);
+        b = parseInt(hex.substring(4, 6), 16);
+      }
+
+      if (hex.length === 8) {
+        r = parseInt(hex.substring(0, 2), 16);
+        g = parseInt(hex.substring(2, 4), 16);
+        b = parseInt(hex.substring(4, 6), 16);
+        a = parseInt(hex.substring(6, 8), 16) / 255;
+      }
+    }
+
+    const rgbaMatch = color.match(
+      /rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([0-9.]+))?\s*\)/
+    );
+
+    if (rgbaMatch) {
+      r = parseInt(rgbaMatch[1], 10);
+      g = parseInt(rgbaMatch[2], 10);
+      b = parseInt(rgbaMatch[3], 10);
+
+      if (rgbaMatch[4] !== undefined) {
+        a = parseFloat(rgbaMatch[4]);
+      }
+    }
+
+    const aa = this.toHexByte(Math.round(a * 255));
+    const bb = this.toHexByte(b);
+    const gg = this.toHexByte(g);
+    const rr = this.toHexByte(r);
+
+    return `${aa}${bb}${gg}${rr}`;
+  }
+
+  private toHexByte(value: number): string {
+    const clamped = Math.max(0, Math.min(255, value));
+    return clamped.toString(16).padStart(2, '0');
+  }
+
+  private polygonToKml(polygon: Polygon): string {
+    const rings = polygon.getCoordinates();
+
+    const outerRing = rings[0];
+    const innerRings = rings.slice(1);
+
+    return `
+<Polygon>
+  <tessellate>1</tessellate>
+  <altitudeMode>clampToGround</altitudeMode>
+  <outerBoundaryIs>
+    <LinearRing>
+      <coordinates>
+        ${this.coordinatesToKml(outerRing)}
+      </coordinates>
+    </LinearRing>
+  </outerBoundaryIs>
+  ${innerRings.map(ring => `
+  <innerBoundaryIs>
+    <LinearRing>
+      <coordinates>
+        ${this.coordinatesToKml(ring)}
+      </coordinates>
+    </LinearRing>
+  </innerBoundaryIs>`).join('\n')}
+</Polygon>`;
+  }
+
+  private multiPolygonToKml(multiPolygon: MultiPolygon): string {
+    const polygons = multiPolygon.getPolygons();
+
+    return `
+<MultiGeometry>
+  ${polygons.map(polygon => this.polygonToKml(polygon)).join('\n')}
+</MultiGeometry>`;
+  }
+
+  private coordinatesToKml(coordinates: number[][]): string {
+    return coordinates
+      .map(coord => {
+        const [lon, lat] = transform(coord, 'EPSG:3857', 'EPSG:4326');
+        return `${lon},${lat},0`;
+      })
+      .join(' ');
+  }
+
+  private escapeXml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
   }
 }

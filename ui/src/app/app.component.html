@@ -63,6 +63,13 @@
         <mat-icon>upload_file</mat-icon><b>KML</b>
       </button>
 
+      <button
+        class="icon-button icon-primary"
+        title="Export KML"
+        (click)="downloadSelectedAsGoogleEarthKml()">
+        <mat-icon>sim_card_download</mat-icon><b>KML</b>
+      </button>
+
     }
     @case ('MANAGER') {
       <button class="icon-button icon-primary" title="MANAGER" (click)="openPersonaDialog()"><mat-icon>manage_accounts</mat-icon> <span>MANAGER</span></button>
