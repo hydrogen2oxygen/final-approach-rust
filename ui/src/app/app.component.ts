@@ -307,6 +307,8 @@ export class AppComponent implements OnInit {
       style = this.createStyle([0, 0, 0, 0.05], [255, 0, 0, 0.25], strokeWidth, '#000', '#fff', 3);
     } else if (feature.get('imported') && this.hideImportedFeature) {
       style = new Style({});
+    } else if (feature.get('territoryName') == 'DRAFT') {
+      style = this.createStyle([255, 0, 0, 0.05], [155, 0, 0, 0.75], strokeWidth, '#700000', '#fff', 2);
     } else if (feature.get('draft') == false) {
       if (feature.get('foreignLanguageGroup')) {
         let ffc = this.getColor(this.congregation.foreignFillColor)
@@ -318,6 +320,8 @@ export class AppComponent implements OnInit {
         style = this.createStyle([ffc[0], ffc[1], ffc[2], 0.1], [fsc[0], fsc[1], fsc[2], 0.5], strokeWidth, this.congregation.defaultTextFillColor, this.congregation.defaultTextStrokeColor, 2);
       }
     }
+
+    console.log(this.map.getView().getZoom())
 
     if (this.map.getView().getZoom() > 17) {
       style.getText().setText(feature.get('territoryNumber') + ' ' + feature.get('territoryName') + "\n" + feature.get('additionalNote'));
@@ -517,12 +521,6 @@ export class AppComponent implements OnInit {
     let i = 0; // if saving multiple features at once, you need a different number for each one
     this.source.getFeatures().forEach(feature => {
 
-      if (feature.get('deleteID')) {
-        this.mapService.deleteMapDesign(feature.get('deleteID')).subscribe(() => {
-          this.toastr.warning("mapDesign with id: " + feature.get('deleteID') + " deleted successfully");
-        })
-      }
-
       if (feature.get('draft') == false) {
         return;
       }
@@ -631,13 +629,16 @@ export class AppComponent implements OnInit {
     mapDesign.territoryName = this.territoryCustomName.value;
     mapDesign.foreignLanguageGroup = this.addAsForeignLanguageTerritory.value;
     // ensure that the feature is deleted from the backend, if it exists, and it will be replaced by the new one
-    this.lastSelectedFeature.set('deleteID', this.lastSelectedFeature.get('territoryNumber'));
+    let deleteId = this.lastSelectedFeature.get('territoryNumber');
+    this.mapService.deleteMapDesign(deleteId).subscribe(() => {
+      this.mapService.saveMapDesign(mapDesign).subscribe(() => {})
+    })
     // then a new real number is assigned to the feature
     this.lastSelectedFeature.set('territoryNumber', mapDesign.territoryNumber);
     this.lastSelectedFeature.set('territoryName', mapDesign.territoryName);
     this.lastSelectedFeature.set('additionalNote', mapDesign.additionalNote);
     this.lastSelectedFeature.set('foreignLanguageGroup', mapDesign.foreignLanguageGroup);
-    this.lastSelectedFeature.set('draft', true);
+    this.lastSelectedFeature.set('draft', false);
 
     let territory = new Territory();
     territory.number = mapDesign.territoryNumber;

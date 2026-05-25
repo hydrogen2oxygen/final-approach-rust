@@ -152,18 +152,14 @@
 
 @if (lastSelectedFeature && persona == 'MANAGER') {
   <div
-    style="position: fixed; top: 1rem; right: 1rem; margin: 1rem; background-color: rgb({{getRGBfillByType()}} / 0.7); border-radius: 0.5rem; padding: 0.75rem;">
+    style="position: fixed; top: 2rem; right: 1rem; margin: 1rem; background-color: rgb({{getRGBfillByType()}} / 0.7); border-radius: 0.5rem; padding: 0.75rem;">
     <div class="container text-center">
-
-      <b style="color:white; text-shadow: 1px 1px 2px black">{{ lastSelectedTerritory.number }}
-        - {{ lastSelectedTerritory.name }}</b>
-      <button class="btn">
-        <mat-icon>home_filled</mat-icon>
-      </button>
-      <br/>
       <ul class="nav nav-pills">
         <li class="nav-item">
-          <b class="btn btn-primary btn-sm2" style="padding: 0.3rem" [class.active]="tabTerritory" (click)="tabTerritory = true">REGISTRY</b>
+          <b style="padding: 0.3rem"><b style="color:white; text-shadow: 1px 1px 2px black">{{ lastSelectedTerritory.number }} - {{ lastSelectedTerritory.name }}</b></b>
+        </li>
+        <li class="nav-item">
+          <b class="btn btn-primary btn-sm2" style="margin-left: 0.5rem; padding: 0.3rem" [class.active]="tabTerritory" (click)="tabTerritory = true">REGISTRY</b>
         </li>
         <li class="nav-item">
           <b class="btn btn-danger btn-sm2" style="margin-left: 0.5rem; padding: 0.3rem" [class.active]="!tabTerritory" (click)="tabTerritory = false">DO NOT VISIT ENTRIES
