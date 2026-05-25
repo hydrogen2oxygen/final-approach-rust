@@ -26,7 +26,7 @@ import {PersonaComponent} from './components/persona/persona.component';
 import {Coordinate} from 'ol/coordinate';
 import {toLonLat} from 'ol/proj';
 import {createEmpty, extend, isEmpty} from 'ol/extent';
-import {Congregation, Preacher, RegistryEntry, Territory} from './domains/Congregation';
+import {Congregation, DoNotVisit, Preacher, RegistryEntry, Territory} from './domains/Congregation';
 import {jsPDF} from 'jspdf';
 import {buffer} from 'ol/extent';
 import {click, shiftKeyOnly} from 'ol/events/condition';
@@ -51,12 +51,15 @@ export class AppComponent implements OnInit {
   showOsmData: boolean = false;
   hideImportedFeature: boolean = false;
   home: any;
-  note = new FormControl('');
   territoryNumber = new FormControl('');
   territoryName = new FormControl('');
   territoryCustomNumber = new FormControl('');
   territoryCustomName = new FormControl('');
   preacherName = new FormControl('');
+  doNotVisitStreet = new FormControl('');
+  doNotVisitHouseNumber = new FormControl('');
+  doNotVisitDoorbell = new FormControl('');
+  doNotVisitName = new FormControl('');
   addAsForeignLanguageTerritory = new FormControl(false);
   editingReturnDate: RegistryEntry | null = null;
 
@@ -84,6 +87,7 @@ export class AppComponent implements OnInit {
   persona: string = localStorage.getItem('persona') || Personas.DESIGNER;
   defaultMapColor: string = '0,100,0';
   foreignMapColor: string = '183,0,255';
+  tabTerritory:boolean = true;
 
   constructor(
     private dialog: MatDialog,
@@ -158,8 +162,6 @@ export class AppComponent implements OnInit {
 
         this.territoryCustomNumber.setValue(null);
         this.territoryCustomName.setValue(null);
-        this.note.setValue(null);
-
         this.vectorLayer.changed();
         return;
       }
@@ -168,7 +170,6 @@ export class AppComponent implements OnInit {
       this.lastSelectedTerritory = this.territoriesSorted.find(t => t.number === this.lastSelectedFeature.get('territoryNumber'))
       this.territoryCustomNumber.setValue(this.lastSelectedFeature.get('territoryNumber'));
       this.territoryCustomName.setValue(this.lastSelectedFeature.get('territoryName'));
-      this.note.setValue(this.lastSelectedFeature.get('note'));
       this.addAsForeignLanguageTerritory.setValue(this.lastSelectedFeature.get('foreignLanguageGroup'));
       this.vectorLayer.changed();
     });
@@ -473,7 +474,6 @@ export class AppComponent implements OnInit {
       modifiedFeature.set('draft', true);
       this.territoryCustomNumber.setValue(modifiedFeature.get('territoryNumber'));
       this.territoryCustomName.setValue(modifiedFeature.get('territoryName'));
-      this.note.setValue(modifiedFeature.get('note'));
       this.lastSavedTerritoryName = this.territoryCustomNumber.value + ' ' + this.territoryCustomName.value;
       this.modifiedFeatures = true;
     })
@@ -629,7 +629,6 @@ export class AppComponent implements OnInit {
     mapDesign.draft = false;
     mapDesign.territoryNumber = this.territoryCustomNumber.value;
     mapDesign.territoryName = this.territoryCustomName.value;
-    mapDesign.additionalNote = this.note.value;
     mapDesign.foreignLanguageGroup = this.addAsForeignLanguageTerritory.value;
     // ensure that the feature is deleted from the backend, if it exists, and it will be replaced by the new one
     this.lastSelectedFeature.set('deleteID', this.lastSelectedFeature.get('territoryNumber'));
@@ -840,6 +839,17 @@ export class AppComponent implements OnInit {
       this.territoriesToBeAssigned = this.territoriesToBeAssigned.sort((a, b) => (new Date(a.date) > new Date(b.date) ? 1 : -1));
       this.territoriesOlder4Months = this.territoriesOlder4Months.sort((a, b) => (new Date(a.date) > new Date(b.date) ? 1 : -1));
       this.territoriesOlder8Months = this.territoriesOlder8Months.sort((a, b) => (new Date(a.date) > new Date(b.date) ? 1 : -1));
+
+      setTimeout(() => {
+        territories.forEach((t: Territory) => {
+          if (t.doNotVisitList && t.doNotVisitList.length > 0) {
+            let feature = this.source.getFeatures().find(f => f.get('territoryNumber') == t.number);
+            if (feature) {
+              feature.set('additionalNote', `(${t.doNotVisitList.length} do not visit)`);
+            }
+          }
+        })
+      }, 500)
     })
   }
 
@@ -1241,8 +1251,6 @@ export class AppComponent implements OnInit {
 
     this.territoryCustomNumber.setValue(null);
     this.territoryCustomName.setValue(null);
-    this.note.setValue(null);
-
     this.vectorLayer.changed();
   }
 
@@ -1608,5 +1616,29 @@ export class AppComponent implements OnInit {
   }
 
 
+  protected addDoNotVisitEntry() {
+    let doNotVisitEntry = new DoNotVisit()
+    doNotVisitEntry.street = this.doNotVisitStreet.value;
+    doNotVisitEntry.houseNumber = this.doNotVisitHouseNumber.value;
+    doNotVisitEntry.doorbell = this.doNotVisitDoorbell.value;
+    doNotVisitEntry.name = this.doNotVisitName.value;
+    doNotVisitEntry.date = new Date();
+    if (!this.lastSelectedTerritory.doNotVisitList) {
+      this.lastSelectedTerritory.doNotVisitList = [];
+    }
+    this.lastSelectedTerritory.doNotVisitList.push(doNotVisitEntry);
+    this.lastSelectedFeature.set('additionalNote', `(${this.lastSelectedTerritory.doNotVisitList.length} do not visit)`);
+    this.mapService.saveTerritory(this.lastSelectedTerritory).subscribe(() => {
+    });
+    this.mapService.saveTerritory(this.lastSelectedTerritory).subscribe(() => {});
+  }
 
+  protected deleteDoNotVisit(d: DoNotVisit) {
+    this.lastSelectedTerritory.doNotVisitList.splice(this.lastSelectedTerritory.doNotVisitList.indexOf(d), 1);
+    this.lastSelectedFeature.set('additionalNote', `(${this.lastSelectedTerritory.doNotVisitList.length} do not visit)`);
+    if (this.lastSelectedTerritory.doNotVisitList.length === 0) {
+      this.lastSelectedFeature.set('additionalNote', '');
+    }
+    this.mapService.saveTerritory(this.lastSelectedTerritory). subscribe(()=>{})
+  }
 }

@@ -22,3 +22,15 @@
 .empty-date-cell:hover {
   background: #f8f9fa;
 }
+
+.table-scroll-container {
+  max-height: calc(100vh - 250px);
+  overflow-y: auto;
+}
+
+.table-scroll-container thead th {
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 2;
+}
