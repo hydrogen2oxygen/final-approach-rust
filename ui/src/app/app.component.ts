@@ -88,6 +88,7 @@ export class AppComponent implements OnInit {
   defaultMapColor: string = '0,100,0';
   foreignMapColor: string = '183,0,255';
   tabTerritory:boolean = true;
+  modalCongregationDetails: boolean = false;
 
   constructor(
     private dialog: MatDialog,
@@ -320,8 +321,6 @@ export class AppComponent implements OnInit {
         style = this.createStyle([ffc[0], ffc[1], ffc[2], 0.1], [fsc[0], fsc[1], fsc[2], 0.5], strokeWidth, this.congregation.defaultTextFillColor, this.congregation.defaultTextStrokeColor, 2);
       }
     }
-
-    console.log(this.map.getView().getZoom())
 
     if (this.map.getView().getZoom() > 17) {
       style.getText().setText(feature.get('territoryNumber') + ' ' + feature.get('territoryName') + "\n" + feature.get('additionalNote'));
@@ -561,7 +560,9 @@ export class AppComponent implements OnInit {
       streetList: [],
       residentialUnits: [],
       url: '',
-      foreignLanguageGroup: feature.get('foreignLanguageGroup')
+      foreignLanguageGroup: feature.get('foreignLanguageGroup'),
+      businessSector: feature.get('businessSector'),
+      industrySector: feature.get('industrySector'),
     }
     return mapDesign;
   }
@@ -616,7 +617,9 @@ export class AppComponent implements OnInit {
         note: mapDesign.note,
         draft: mapDesign.draft,
         foreignLanguageGroup: mapDesign.foreignLanguageGroup,
-        imported: false // Set to true if the feature is imported
+        imported: false, // Set to true if the feature is imported
+        businessSector: mapDesign.businessSector,
+        industrySector: mapDesign.industrySector
       });
       this.source.addFeature(feature);
     }
@@ -638,6 +641,8 @@ export class AppComponent implements OnInit {
     this.lastSelectedFeature.set('territoryName', mapDesign.territoryName);
     this.lastSelectedFeature.set('additionalNote', mapDesign.additionalNote);
     this.lastSelectedFeature.set('foreignLanguageGroup', mapDesign.foreignLanguageGroup);
+    this.lastSelectedFeature.set('businessSector', mapDesign.businessSector);
+    this.lastSelectedFeature.set('industrySector', mapDesign.industrySector);
     this.lastSelectedFeature.set('draft', false);
 
     let territory = new Territory();
@@ -1641,5 +1646,9 @@ export class AppComponent implements OnInit {
       this.lastSelectedFeature.set('additionalNote', '');
     }
     this.mapService.saveTerritory(this.lastSelectedTerritory). subscribe(()=>{})
+  }
+
+  protected openPreacherDetails(p: Preacher) {
+    
   }
 }

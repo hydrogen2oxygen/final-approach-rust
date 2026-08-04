@@ -20,6 +20,8 @@ export class TerritoryMap {
   residentialUnits:ResidentialUnit[] = [];
   url:string='';
   foreignLanguageGroup:boolean=false;
+  businessSector:boolean=false;
+  industrySector:boolean=false;
 }
 
 export enum Personas {

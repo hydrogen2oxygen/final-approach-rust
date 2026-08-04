@@ -5,10 +5,8 @@ import { Observable } from 'rxjs';
   providedIn: 'root'
 })
 export class AppService {
-  
-  constructor() {
-    console.log('AppService initialized');
-  }
+
+  constructor() {}
 
   getAppInfo(): Observable<any> {
     return new Observable(observer => {

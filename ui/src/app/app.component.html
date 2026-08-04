@@ -13,17 +13,13 @@
 <div style="position: fixed; left: 4rem; top: 1rem; display: flex; flex-direction: row; gap: 0.5rem;">
 
   @if (congregation && congregation.name) {
-    <button style="background-color: rgba(0,128,255,0.66)!important;" class="icon-button icon-success">
-      <mat-icon>home_filled</mat-icon>
-      {{ congregation.name }}
-    </button>
+    <button style="background-color: rgba(0,128,255,0.66)!important;" class="icon-button icon-success" (click)="modalCongregationDetails = !modalCongregationDetails">
+      <mat-icon>home_filled</mat-icon>{{ congregation.name }} </button>
   }
 
   @if (congregation && congregation.includeForeignLanguageGroup) {
     <button style="background-color: rgba(183 0 255 / 0.66)!important;" class="icon-button icon-success">
-      <mat-icon>group</mat-icon>
-      {{ congregation.foreignLanguageGroupName }}
-    </button>
+      <mat-icon>group</mat-icon> {{ congregation.foreignLanguageGroupName }}</button>
   }
 
   @switch (persona) {
@@ -128,8 +124,7 @@
 </div>
 
 @if (lastSelectedFeature && persona == 'DESIGNER') {
-  <div
-    style="position: fixed; bottom: 1rem; left: 1rem; margin: 1rem; {{getForeignStyleColour()}} border-radius: 0.5rem; padding: 0.75rem;">
+  <div style="position: fixed; bottom: 1rem; left: 1rem; margin: 1rem; {{getForeignStyleColour()}} border-radius: 0.5rem; padding: 0.75rem;">
     <div class="input-group input-group-sm mb-0 align-items-center">
       <input class="form-control" type="text" placeholder="number" [formControl]="territoryCustomNumber">
       <input class="form-control" type="text" placeholder="territory name" [formControl]="territoryCustomName">
@@ -151,8 +146,7 @@
 }
 
 @if (lastSelectedFeature && persona == 'MANAGER') {
-  <div
-    style="position: fixed; top: 2rem; right: 1rem; margin: 1rem; background-color: rgb({{getRGBfillByType()}} / 0.7); border-radius: 0.5rem; padding: 0.75rem;">
+  <div style="position: fixed; top: 2rem; right: 1rem; margin: 1rem; background-color: rgb({{getRGBfillByType()}} / 0.7); border-radius: 0.5rem; padding: 0.75rem;">
     <div class="container text-center">
       <ul class="nav nav-pills">
         <li class="nav-item">
@@ -284,3 +278,12 @@
     </div>
   </div>
 }
+
+@if (modalCongregationDetails && persona == 'MANAGER') {
+  <div style="position: fixed; top: 3rem; left: 3rem; margin: 1rem; background-color: rgba(126,177,255,0.7); border-radius: 0.5rem; padding: 0.75rem;">
+    @for (p of congregation.preacherList; track p) {
+      <button class="btn btn-primary btn-sm2" style="margin-left: 0.5rem; margin-top:0.2rem; padding: 0.3rem" (click)="openPreacherDetails(p)">{{p.name}}</button>
+    }
+  </div>
+}
+
