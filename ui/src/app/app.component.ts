@@ -72,6 +72,10 @@ export class AppComponent implements OnInit {
   territoriesToBeAssigned: Territory[] = [];
   territoriesArchived: Territory[] = [];
 
+  territoryNumbers: string [] = [];
+  territoryNumberExist: boolean = false;
+  territoryNames: Set<string> = new Set<string>();
+
   selectInteraction = new Select();
   dragAndDropInteraction: DragAndDrop | undefined;
   wktFormat = new WKT();
@@ -598,6 +602,8 @@ export class AppComponent implements OnInit {
 
         mapDesigns.forEach(mapDesign => {
           this.loadTerritoryMap(mapDesign);
+          this.territoryNumbers.push(mapDesign.territoryNumber);
+          this.territoryNames.add(mapDesign.territoryName);
         });
       },
       error: (error) => {
@@ -652,6 +658,10 @@ export class AppComponent implements OnInit {
 
     this.mapService.saveTerritory(territory).subscribe(() => {
       this.toastr.success('Territory saved successfully');
+      if (!this.territoryNumbers.find(t => t == territory.number)) {
+        this.territoryNumbers.push(territory.number);
+      }
+      this.territoryNames.add(territory.name);
     })
 
   }
@@ -1649,6 +1659,14 @@ export class AppComponent implements OnInit {
   }
 
   protected openPreacherDetails(p: Preacher) {
-    
+
+  }
+
+  protected checkIfTerritoryNumberExist() {
+    if (this.territoryNumbers.find( t => t == this.territoryCustomNumber.value)) {
+      this.territoryNumberExist = true;
+    } else {
+      this.territoryNumberExist = false;
+    }
   }
 }

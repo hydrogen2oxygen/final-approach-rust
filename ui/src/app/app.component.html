@@ -126,8 +126,19 @@
 @if (lastSelectedFeature && persona == 'DESIGNER') {
   <div style="position: fixed; bottom: 1rem; left: 1rem; margin: 1rem; {{getForeignStyleColour()}} border-radius: 0.5rem; padding: 0.75rem;">
     <div class="input-group input-group-sm mb-0 align-items-center">
-      <input class="form-control" type="text" placeholder="number" [formControl]="territoryCustomNumber">
-      <input class="form-control" type="text" placeholder="territory name" [formControl]="territoryCustomName">
+      <input class="form-control" [class.territoryNumberExist]="territoryNumberExist" [class.territoryNumberNotExist]="!territoryNumberExist" type="text" list="territoryNumbers" placeholder="number" (keyup)="checkIfTerritoryNumberExist()" [formControl]="territoryCustomNumber">
+      <datalist id="territoryNumbers">
+        @for (territoryNumber of territoryNumbers; track territoryNumber) {
+          <option value="{{territoryNumber}}">
+        }
+      </datalist>
+
+      <input class="form-control" type="text" list="territoryNames" placeholder="territory name" [formControl]="territoryCustomName">
+      <datalist id="territoryNames">
+        @for (territoryName of territoryNames; track territoryName) {
+          <option value="{{territoryName}}">
+        }
+      </datalist>
 
       @if (congregation && congregation.includeForeignLanguageGroup) {
         <label class="form-check-label" for="includeForeignLanguageGroup"
