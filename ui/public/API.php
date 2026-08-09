@@ -69,6 +69,25 @@ function getJsonFilePath(string $dataDir, string $name): string
   return $dataDir . DIRECTORY_SEPARATOR . $filename;
 }
 
+
+/**
+ * Sicheren relativen Pfad für UI-Dateien erzeugen
+ */
+function sanitizeUiPath(string $name): string
+{
+  $name = str_replace('\\', '/', trim($name));
+
+  if ($name === '' || str_starts_with($name, '/') || str_contains($name, '..')) {
+    jsonResponse(['error' => 'Ungültiger UI-Dateipfad'], 400);
+  }
+
+  if (!preg_match('#^[a-zA-Z0-9._/\\-]+$#', $name)) {
+    jsonResponse(['error' => 'Ungültiger UI-Dateipfad'], 400);
+  }
+
+  return $name;
+}
+
 /**
  * JSON Body lesen
  */
@@ -94,6 +113,7 @@ function readJsonBody(): array
 
 $method = $_SERVER['REQUEST_METHOD'];
 $name = $_GET['name'] ?? null;
+$action = $_GET['action'] ?? null;
 
 switch ($method) {
 
@@ -135,6 +155,36 @@ switch ($method) {
 
 
   case 'POST':
+    if ($action === 'upload-ui') {
+      if ($name === null || trim($name) === '') {
+        jsonResponse(['error' => 'Parameter "name" fehlt'], 400);
+      }
+
+      $relativePath = sanitizeUiPath($name);
+      $uiDir = __DIR__ . '/';
+      $filePath = $uiDir . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
+      $targetDir = dirname($filePath);
+
+      if (!is_dir($targetDir) && !mkdir($targetDir, 0775, true) && !is_dir($targetDir)) {
+        jsonResponse(['error' => 'Zielordner konnte nicht erstellt werden'], 500);
+      }
+
+      $raw = file_get_contents('php://input');
+
+      if ($raw === false) {
+        jsonResponse(['error' => 'Request Body konnte nicht gelesen werden'], 400);
+      }
+
+      if (file_put_contents($filePath, $raw) === false) {
+        jsonResponse(['error' => 'UI-Datei konnte nicht gespeichert werden'], 500);
+      }
+
+      jsonResponse([
+        'message' => 'UI-Datei gespeichert',
+        'file' => $relativePath
+      ], 201);
+    }
+
     if ($name === null || trim($name) === '') {
       jsonResponse(['error' => 'Parameter "name" fehlt'], 400);
     }

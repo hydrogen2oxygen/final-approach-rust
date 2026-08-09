@@ -5,7 +5,7 @@ Rust (a programming language similar to C++) based territory designer and manage
 ````shell
 cd ui
 npm install
-ng build
+npm run build
 cd ..
 cargo build --release
 ````

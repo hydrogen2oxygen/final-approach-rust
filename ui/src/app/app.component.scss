@@ -46,3 +46,7 @@
   background: white;
   z-index: 2;
 }
+
+#map {
+  touch-action: none;
+}

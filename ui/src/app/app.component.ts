@@ -94,6 +94,11 @@ export class AppComponent implements OnInit {
   tabTerritory:boolean = true;
   modalCongregationDetails: boolean = false;
 
+  isLocalhost =
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname === '::1';
+
   constructor(
     private dialog: MatDialog,
     private mapService: MapService,
@@ -237,13 +242,15 @@ export class AppComponent implements OnInit {
     // check if there is a url parameter to load a specific map design
     const urlParams = new URLSearchParams(window.location.search);
     const id = urlParams.get('id');
-    if (id) {
+    if (!this.isLocalhost) {
       this.persona = Personas.PREACHER
       // The map is loaded from the URL parameter, id=<id>,folder=<folder>
       const path = urlParams.get('path');
-      this.mapService.loadMapDesignById(id, path).subscribe((mapDesign: TerritoryMap) => {
-        this.loadTerritoryMap(mapDesign);
-      });
+      if (id) {
+        this.mapService.loadMapDesignById(id, path).subscribe((mapDesign: TerritoryMap) => {
+          this.loadTerritoryMap(mapDesign);
+        });
+      }
     } else {
 
       this.appService.getAppInfo().subscribe(info => {

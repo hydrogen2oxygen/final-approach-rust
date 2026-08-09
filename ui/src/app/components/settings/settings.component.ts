@@ -49,9 +49,7 @@ export class SettingsComponent implements OnInit {
   ngOnInit(): void {
     this.mapService.loadCongregation().subscribe(congregation => {
       this.congregation = congregation[0]
-
-      this.apiService.setBaseUrl(`${this.congregation.rootURL}/${this.congregation.apiUUID}.php`)
-      this.apiService.setApiSECRET(this.congregation.apiSECRET)
+      this.apiService.setCongregation(this.congregation)
 
       this.congregationName.setValue(this.congregation.name)
       this.note.setValue(this.congregation.notes)
@@ -90,8 +88,7 @@ export class SettingsComponent implements OnInit {
     this.congregation.apiSECRET = this.apiSECRET.value;
     this.congregation.rootURL = this.rootURL.value;
 
-    this.apiService.setBaseUrl(`${this.rootURL.value}/${this.apiUUID.value}.php`)
-    this.apiService.setApiSECRET(this.apiSECRET.value)
+    this.apiService.setCongregation(this.congregation)
 
     this.mapService.saveCongregation(this.congregation).subscribe(()=> {
       this.toastr.success('Saved', 'Settings')
@@ -107,14 +104,16 @@ export class SettingsComponent implements OnInit {
   protected generateUUID() {
     if (confirm("WARNING!!! Do you want to generate a new UUID?")) {
       this.apiUUID.setValue(crypto.randomUUID());
-      this.apiService.setBaseUrl(`${this.rootURL.value}/${this.apiUUID.value}.php`)
+      this.congregation.apiUUID = this.apiUUID.value;
+      this.apiService.setCongregation(this.congregation)
     }
   }
 
   protected generateSECRET() {
     if (confirm("WARNING!!! Do you want to generate a new SECRET?")) {
       this.apiSECRET.setValue(crypto.randomUUID());
-      this.apiService.setApiSECRET(this.apiSECRET.value)
+      this.congregation.apiSECRET = this.apiSECRET.value;
+      this.apiService.setCongregation(this.congregation)
     }
   }
 
@@ -142,7 +141,7 @@ export class SettingsComponent implements OnInit {
   }
 
   ping() {
-    this.apiService.setBaseUrl(`${this.rootURL.value}/${this.apiUUID.value}.php`)
+    this.apiService.setCongregation(this.congregation)
     this.apiService.ping().subscribe(
       () => {
         this.toastr.success('API is reachable', 'Settings')
@@ -151,5 +150,12 @@ export class SettingsComponent implements OnInit {
         this.toastr.error('API is not reachable', 'Settings')
       }
     )
+  }
+
+  protected uploadUI() {
+    this.apiService.setCongregation(this.congregation)
+    this.apiService.uploadUI().subscribe(() => {
+      this.toastr.success('UI files uploaded', 'Settings')
+    })
   }
 }
