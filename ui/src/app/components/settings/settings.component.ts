@@ -7,6 +7,7 @@ import {MatButtonModule} from '@angular/material/button';
 import {MatIconModule} from '@angular/material/icon';
 import {FormControl, ReactiveFormsModule} from '@angular/forms';
 import {ToastrService} from 'ngx-toastr';
+import {ApiService} from '../../services/api.service';
 
 @Component({
   selector: 'app-settings',
@@ -33,15 +34,25 @@ export class SettingsComponent implements OnInit {
   foreignTextFillColor = new FormControl('');
   foreignTextStrokeColor = new FormControl('');
 
+  // apiUUID represent the UUID of the API that is used to communicate with the internet-located server, where only spacial data is stored
+  apiUUID = new FormControl('');
+  apiSECRET = new FormControl('');
+  rootURL = new FormControl('');
+
   constructor(
     private dialogRef: MatDialogRef<SettingsComponent>,
     private mapService: MapService,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private apiService:ApiService
   ) {}
 
   ngOnInit(): void {
     this.mapService.loadCongregation().subscribe(congregation => {
       this.congregation = congregation[0]
+
+      this.apiService.setBaseUrl(`${this.congregation.rootURL}/${this.congregation.apiUUID}.php`)
+      this.apiService.setApiSECRET(this.congregation.apiSECRET)
+
       this.congregationName.setValue(this.congregation.name)
       this.note.setValue(this.congregation.notes)
       this.includeForeignLanguageGroup.setValue(this.congregation.includeForeignLanguageGroup)
@@ -54,6 +65,9 @@ export class SettingsComponent implements OnInit {
       this.foreignStrokeColor.setValue(this.congregation.foreignStrokeColor)
       this.foreignTextFillColor.setValue(this.congregation.foreignTextFillColor)
       this.foreignTextStrokeColor.setValue(this.congregation.foreignTextStrokeColor)
+      this.apiUUID.setValue(this.congregation.apiUUID)
+      this.apiSECRET.setValue(this.congregation.apiSECRET)
+      this.rootURL.setValue(this.congregation.rootURL)
       console.log('SettingsComponent initialized')
     })
 
@@ -72,6 +86,13 @@ export class SettingsComponent implements OnInit {
     this.congregation.foreignStrokeColor = this.foreignStrokeColor.value;
     this.congregation.foreignTextFillColor = this.foreignTextFillColor.value;
     this.congregation.foreignTextStrokeColor = this.foreignTextStrokeColor.value;
+    this.congregation.apiUUID = this.apiUUID.value;
+    this.congregation.apiSECRET = this.apiSECRET.value;
+    this.congregation.rootURL = this.rootURL.value;
+
+    this.apiService.setBaseUrl(`${this.rootURL.value}/${this.apiUUID.value}.php`)
+    this.apiService.setApiSECRET(this.apiSECRET.value)
+
     this.mapService.saveCongregation(this.congregation).subscribe(()=> {
       this.toastr.success('Saved', 'Settings')
 
@@ -82,4 +103,53 @@ export class SettingsComponent implements OnInit {
   }
 
   protected readonly Personas = Personas;
+
+  protected generateUUID() {
+    if (confirm("WARNING!!! Do you want to generate a new UUID?")) {
+      this.apiUUID.setValue(crypto.randomUUID());
+      this.apiService.setBaseUrl(`${this.rootURL.value}/${this.apiUUID.value}.php`)
+    }
+  }
+
+  protected generateSECRET() {
+    if (confirm("WARNING!!! Do you want to generate a new SECRET?")) {
+      this.apiSECRET.setValue(crypto.randomUUID());
+      this.apiService.setApiSECRET(this.apiSECRET.value)
+    }
+  }
+
+  async downloadApi(): Promise<void> {
+    const response = await fetch('/API.php');
+    let content = await response.text();
+
+    content = content.replace(
+      "'CHANGE_ME_SECRET_KEY'",
+      `'${this.apiSECRET.value}'`
+    );
+
+    const blob = new Blob([content], {
+      type: 'application/x-httpd-php;charset=utf-8'
+    });
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+
+    a.href = url;
+    a.download = `${this.apiUUID.value}.php`;
+    a.click();
+
+    URL.revokeObjectURL(url);
+  }
+
+  ping() {
+    this.apiService.setBaseUrl(`${this.rootURL.value}/${this.apiUUID.value}.php`)
+    this.apiService.ping().subscribe(
+      () => {
+        this.toastr.success('API is reachable', 'Settings')
+      },
+      (error) => {
+        this.toastr.error('API is not reachable', 'Settings')
+      }
+    )
+  }
 }

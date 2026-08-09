@@ -20,6 +20,9 @@ export class Congregation {
   foreignStrokeColor:string = "";
   foreignTextFillColor:string = "";
   foreignTextStrokeColor:string = "";
+  apiUUID: string = "";
+  apiSECRET: string = "";
+  rootURL: string = "";
 }
 
 export class Preacher {

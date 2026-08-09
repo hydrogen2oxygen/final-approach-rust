@@ -76,5 +76,22 @@
       </div>
     }
   <hr>
+  <div class="input-group input-group-sm">
+    <span class="input-group-text" id="apiUUID">API UUID</span>
+    <input type="text" class="form-control" [formControl]="apiUUID">
+    <button class="btn btn-danger" (click)="generateUUID()">Generate</button>
+    <button class="btn btn-primary" (click)="downloadApi()">Download API</button>
+  </div>
+  <div class="input-group input-group-sm" style="margin-top: 0.5rem">
+    <span class="input-group-text" id="apiSECRET">API SECRET</span>
+    <input type="text" class="form-control" [formControl]="apiSECRET">
+    <button class="btn btn-danger" (click)="generateSECRET()">Generate</button>
+  </div>
+  <div class="input-group input-group-sm" style="margin-top: 0.5rem">
+    <span class="input-group-text" id="rootURL">ROOT URL</span>
+    <input type="text" class="form-control" [formControl]="rootURL">
+    <button class="btn btn-primary" (click)="ping()">PING</button>
+  </div>
+  <hr>
   <button class="btn btn-success" mat-dialog-close (click)="save()">Save</button>
 </mat-dialog-content>
