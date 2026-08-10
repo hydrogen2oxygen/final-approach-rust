@@ -4,7 +4,8 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build --configuration production && npm run post_build",
+    "prebuild": "node cleanup-build.mjs",
+    "build": "npm run prebuild && ng build --configuration production && npm run post_build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "post_build": "node copy-dist.mjs"

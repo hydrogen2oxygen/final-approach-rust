@@ -50,19 +50,39 @@ export class ApiService {
             const uploadUrl =
               `${this.congregation.rootURL}/${this.congregation.apiUUID}.php${separator}action=upload-ui&name=${encodeURIComponent(remoteName)}`;
 
-            const fileRequest = file === 'browser/index.html'
-              ? this.http.get(localUrl, {responseType: 'text'}).pipe(
-                map((html: string): Blob => {
+            const fileRequest =
+              file === 'browser/index.html'
+                ? this.http.get(localUrl, {responseType: 'text'}).pipe(
+                  map((html: string): Blob => {
+                    html = html
+                      .replace(
+                        '<base href="/">',
+                        `<base href="${this.congregation.rootURL}">`
+                      )
+                      .replace(
+                        '<title>FinalApproach</title>',
+                        `<title>${this.congregation.name}</title>`
+                      );
 
-                  html = html.replace(
-                    '<base href="/">',
-                    `<base href="${this.congregation.rootURL}">`
-                  ).replace('<title>FinalApproach</title>',`<title>${this.congregation.name}</title>`);
+                    return new Blob([html], {type: 'text/html'});
+                  })
+                )
+                : file === 'browser/manifest.webmanifest'
+                  ? this.http.get(localUrl, {responseType: 'text'}).pipe(
+                    map((content: string): Blob => {
+                      const manifest = JSON.parse(content);
 
-                  return new Blob([html], {type: 'text/html'});
-                })
-              )
-              : this.http.get(localUrl, {responseType: 'blob'});
+                      manifest.name = this.congregation.name;
+                      manifest.short_name = this.congregation.name;
+                      manifest.start_url = this.congregation.rootURL;
+
+                      return new Blob(
+                        [JSON.stringify(manifest, null, 2)],
+                        {type: 'application/manifest+json'}
+                      );
+                    })
+                  )
+                  : this.http.get(localUrl, {responseType: 'blob'});
 
             return fileRequest.pipe(
               switchMap(blob => this.http.post(uploadUrl, blob, {

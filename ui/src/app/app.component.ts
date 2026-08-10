@@ -288,6 +288,8 @@ export class AppComponent implements OnInit {
     });
   }
 
+
+
   featureFunction(featureLike: FeatureLike): Style {
 
     let style = this.createStyle();
@@ -1674,6 +1676,14 @@ export class AppComponent implements OnInit {
       this.territoryNumberExist = true;
     } else {
       this.territoryNumberExist = false;
+    }
+  }
+
+  protected toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      document.exitFullscreen();
     }
   }
 }
