@@ -1,4 +1,6 @@
-# Final Approach Rust Edition
+# Final Approach Rust Edition 
+![icon-512.png](ui/public/icon-512.png)
+
 Rust (a programming language similar to C++) based territory designer and manager software.
 
 # Developer
