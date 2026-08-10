@@ -27,3 +27,4 @@ ui/.angular
 ui/.vscode
 /.idea/
 /data/
+/ui/public/browser/
