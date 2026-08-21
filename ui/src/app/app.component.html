@@ -19,12 +19,12 @@
 <div style="position: fixed; left: 4rem; top: 1rem; display: flex; flex-direction: row; gap: 0.5rem;">
 
   @if (congregation && congregation.name) {
-    <button style="background-color: rgba(0,128,255,0.66)!important;" class="icon-button icon-success" (click)="modalCongregationDetails = !modalCongregationDetails">
+    <button style="background-color: rgba(0,128,255,0.66)!important;" class="icon-button icon-success" (click)="openPreacherDetails(false)" title="Congregation">
       <mat-icon>home_filled</mat-icon>{{ congregation.name }} </button>
   }
 
   @if (congregation && congregation.includeForeignLanguageGroup) {
-    <button style="background-color: rgba(183 0 255 / 0.66)!important;" class="icon-button icon-success">
+    <button style="background-color: rgba(183 0 255 / 0.66)!important;" class="icon-button icon-success" (click)="openPreacherDetails(true)">
       <mat-icon>group</mat-icon> {{ congregation.foreignLanguageGroupName }}</button>
   }
 
@@ -124,8 +124,16 @@
     @case ('GROUP_LEADER') {
       <button class="icon-button icon-primary" title="GROUP LEADER" (click)="openPersonaDialog()">
         <mat-icon>group</mat-icon>
-        <span>GROUP LEADER</span></button>
+        <span>GROUP LEADER</span>
+      </button>
     }
+  }
+
+  @if (persona == 'MANAGER' || persona == 'DESIGNER') {
+    <button class="icon-button" [class.icon-success]="changesToBeSaved == 0" [class.icon-warning]="changesToBeSaved > 0" title="UPLOAD CHANGES" (click)="uploadChanges()">
+      <mat-icon>cloud_upload</mat-icon>
+      <span>... UPLOAD {{changesToBeSaved}} CHANGES NOW</span>
+    </button>
   }
 </div>
 
@@ -296,11 +304,33 @@
   </div>
 }
 
-@if (modalCongregationDetails && persona == 'MANAGER') {
-  <div style="position: fixed; top: 3rem; left: 3rem; margin: 1rem; background-color: rgba(126,177,255,0.7); border-radius: 0.5rem; padding: 0.75rem;">
-    @for (p of congregation.preacherList; track p) {
-      <button class="btn btn-primary btn-sm2" style="margin-left: 0.5rem; margin-top:0.2rem; padding: 0.3rem" (click)="openPreacherDetails(p)">{{p.name}}</button>
-    }
-  </div>
+@if (persona == 'MANAGER') {
+  @if (modalPreacherDetails) {
+    <div style="position: fixed; top: 3rem; left: 3rem; margin: 1rem; background-color: rgba(216,216,216,0.7); border-radius: 0.5rem; padding: 0.75rem;">
+
+      <div class="table-scroll-container">
+        <table class="table table-sm tableRegistry table-hover" style="margin-top: 0.75rem;">
+          <thead>
+          <tr>
+            <th>ACTIONS</th>
+            <th>NAME</th>
+          </tr>
+          </thead>
+          <tbody>
+            @for (p of preacherList; track p) {
+              <tr>
+                <td>
+                  <button class="btn-sm btn btn-danger btn-sm2" (click)="deletePreacher(p)" title="delete">DEL</button>
+                  <button class="btn-sm btn btn-warning btn-sm2" style="margin-left: 0.2rem" (click)="switchGroup(p)" title="switchGroup">SWITCH</button>
+                <td>{{ p.name }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  }
 }
+
 

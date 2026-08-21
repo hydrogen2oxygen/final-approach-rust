@@ -35,6 +35,7 @@ export class Preacher {
   harddelete:boolean = false;
   showPreacherActions:boolean = false;
   css:string = ""
+  foreignLanguageGroup:boolean=false;
 }
 
 export class Territory {

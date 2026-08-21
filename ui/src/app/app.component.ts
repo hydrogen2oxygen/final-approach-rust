@@ -76,6 +76,8 @@ export class AppComponent implements OnInit {
   territoryNumberExist: boolean = false;
   territoryNames: Set<string> = new Set<string>();
 
+  changesToBeSaved: number = 0;
+
   selectInteraction = new Select();
   dragAndDropInteraction: DragAndDrop | undefined;
   wktFormat = new WKT();
@@ -91,8 +93,9 @@ export class AppComponent implements OnInit {
   persona: string = localStorage.getItem('persona') || Personas.DESIGNER;
   defaultMapColor: string = '0,100,0';
   foreignMapColor: string = '183,0,255';
-  tabTerritory:boolean = true;
-  modalCongregationDetails: boolean = false;
+  tabTerritory: boolean = true;
+  modalPreacherDetails: boolean = false;
+  preacherList: Preacher[] = [];
 
   isLocalhost =
     window.location.hostname === 'localhost' ||
@@ -191,6 +194,7 @@ export class AppComponent implements OnInit {
       } else if (event.key === 'Escape') {
         this.removeInteraction();
         this.modeSelected = '';
+        this.modalPreacherDetails = false;
         this.clearSelectedFeatures();
       } else if (event.ctrlKey && event.key === 's') {
         event.preventDefault();
@@ -287,7 +291,6 @@ export class AppComponent implements OnInit {
       })
     });
   }
-
 
 
   featureFunction(featureLike: FeatureLike): Style {
@@ -444,12 +447,10 @@ export class AppComponent implements OnInit {
   loadHome(): void {
     this.mapService.loadHome().subscribe(home => {
       this.home = home;
-      console.log(home)
       if (home && this.map) {
         this.map.getView().setCenter(home.coordinates);
         this.map.getView().setZoom(home.zoom);
       } else if (this.congregation && this.map) {
-        console.log("test")
         this.map.getView().setCenter(this.congregation.homeCoordinates);
         this.map.getView().setZoom(this.congregation.homeZoom);
       }
@@ -649,7 +650,8 @@ export class AppComponent implements OnInit {
     // ensure that the feature is deleted from the backend, if it exists, and it will be replaced by the new one
     let deleteId = this.lastSelectedFeature.get('territoryNumber');
     this.mapService.deleteMapDesign(deleteId).subscribe(() => {
-      this.mapService.saveMapDesign(mapDesign).subscribe(() => {})
+      this.mapService.saveMapDesign(mapDesign).subscribe(() => {
+      })
     })
     // then a new real number is assigned to the feature
     this.lastSelectedFeature.set('territoryNumber', mapDesign.territoryNumber);
@@ -805,6 +807,10 @@ export class AppComponent implements OnInit {
     this.mapService.loadCongregation().subscribe({
       "next": congregation => {
         this.congregation = congregation[0];
+
+        // Sort preachers by name
+        this.congregation.preacherList = this.congregation.preacherList.sort((a, b) => (a.name > b.name ? 1 : -1));
+
         if (!this.congregation) {
           console.log("No Congregation found. Creating a new one")
           this.congregation = new Congregation();
@@ -842,6 +848,11 @@ export class AppComponent implements OnInit {
       this.territoriesSorted = territories.sort((a, b) => (a.number > b.number ? 1 : -1));
 
       territories.forEach((t: Territory) => {
+
+        if (!t.exported) {
+          this.changesToBeSaved += 1;
+        }
+
         if (t.registryEntryList.length == 0) {
           this.territoriesToBeAssigned.push(t);
         } else if (t.noContacts && !t.archive) {
@@ -1285,6 +1296,7 @@ export class AppComponent implements OnInit {
       preacher = new Preacher();
       preacher.name = this.preacherName.value;
       this.congregation.preacherList.push(preacher);
+      this.congregation.preacherList = this.congregation.preacherList.sort((a, b) => (a.name > b.name ? 1 : -1));
       this.mapService.saveCongregation(this.congregation).subscribe(() => {
       })
       this.preacherName.setValue(undefined);
@@ -1637,7 +1649,8 @@ export class AppComponent implements OnInit {
   }
 
   protected saveRegistryChange() {
-    this.mapService.saveTerritory(this.lastSelectedTerritory).subscribe(() => {});
+    this.mapService.saveTerritory(this.lastSelectedTerritory).subscribe(() => {
+    });
   }
 
 
@@ -1655,7 +1668,8 @@ export class AppComponent implements OnInit {
     this.lastSelectedFeature.set('additionalNote', `(${this.lastSelectedTerritory.doNotVisitList.length} do not visit)`);
     this.mapService.saveTerritory(this.lastSelectedTerritory).subscribe(() => {
     });
-    this.mapService.saveTerritory(this.lastSelectedTerritory).subscribe(() => {});
+    this.mapService.saveTerritory(this.lastSelectedTerritory).subscribe(() => {
+    });
   }
 
   protected deleteDoNotVisit(d: DoNotVisit) {
@@ -1664,15 +1678,12 @@ export class AppComponent implements OnInit {
     if (this.lastSelectedTerritory.doNotVisitList.length === 0) {
       this.lastSelectedFeature.set('additionalNote', '');
     }
-    this.mapService.saveTerritory(this.lastSelectedTerritory). subscribe(()=>{})
-  }
-
-  protected openPreacherDetails(p: Preacher) {
-
+    this.mapService.saveTerritory(this.lastSelectedTerritory).subscribe(() => {
+    })
   }
 
   protected checkIfTerritoryNumberExist() {
-    if (this.territoryNumbers.find( t => t == this.territoryCustomNumber.value)) {
+    if (this.territoryNumbers.find(t => t == this.territoryCustomNumber.value)) {
       this.territoryNumberExist = true;
     } else {
       this.territoryNumberExist = false;
@@ -1685,5 +1696,63 @@ export class AppComponent implements OnInit {
     } else {
       document.exitFullscreen();
     }
+  }
+
+  protected deletePreacher(p: Preacher) {
+    this.toastr.warning('Preacher will be deleted from all territories ... to be implemented');
+  }
+
+  protected openPreacherDetails(foreignGroup: boolean) {
+
+    if (!this.modalPreacherDetails) {
+      this.modalPreacherDetails = true
+    }
+
+    this.preacherList = []
+    this.congregation.preacherList.forEach(p => {
+      if ((foreignGroup == false && p.foreignLanguageGroup == undefined) || (p.foreignLanguageGroup == foreignGroup)) {
+        this.preacherList.push(p);
+      }
+    })
+  }
+
+  protected switchGroup(p: Preacher) {
+
+    this.preacherList.splice(this.preacherList.indexOf(p), 1);
+
+    if (p.foreignLanguageGroup == undefined) {
+      p.foreignLanguageGroup = false;
+    }
+
+    p.foreignLanguageGroup = !p.foreignLanguageGroup;
+
+    this.congregation.preacherList.forEach(p2 => {
+      if (p2.name == p.name) {
+        console.log(p.foreignLanguageGroup)
+        p2.foreignLanguageGroup = p.foreignLanguageGroup;
+      }
+    })
+    this.mapService.saveCongregation(this.congregation).subscribe(() => {
+      this.toastr.success(`${p.name} is now ${p.foreignLanguageGroup ? 'in' : 'out'} foreign language group`);
+    })
+  }
+
+  protected uploadChanges() {
+    // First assign UUID
+    let toBeExported: Territory[] = [];
+    this.territoriesSorted.forEach(t => {
+      if (!t.exported) {
+        t.uuid = crypto.randomUUID()
+        toBeExported.push(t);
+      }
+    })
+
+    // Then upload each one of them
+    toBeExported.forEach(t => {
+      console.log(t.uuid)
+      // this.mapService. uploadTerritory(t).subscribe(() => {
+      //   this.toastr.success(`Territory ${t.territoryNumber} is now exported`);
+      // })
+    })
   }
 }
