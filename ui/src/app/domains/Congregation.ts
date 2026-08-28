@@ -1,4 +1,5 @@
 import {FormControl} from '@angular/forms';
+import {TerritoryMap} from './MapDesign';
 
 export class Congregation {
   name:string = '';
@@ -53,6 +54,17 @@ export class Territory {
   exported:boolean=false;
   mapExist:boolean=false;
   foreignLanguageGroup:boolean=false;
+}
+
+/**
+ * A preacher has multiple territories, but only one overview.
+ * The overview is a container for the territory list.
+ * It will be uploaded to the server, using the hashcode of the preacher's name.
+ */
+export class TerritoryOverview {
+  preacherName:string = '';
+  territoryList:TerritoryMap[] = [];
+  updatedAt:Date = new Date();
 }
 
 export class DoNotVisit {

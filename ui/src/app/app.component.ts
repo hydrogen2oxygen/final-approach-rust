@@ -26,7 +26,14 @@ import {PersonaComponent} from './components/persona/persona.component';
 import {Coordinate} from 'ol/coordinate';
 import {toLonLat} from 'ol/proj';
 import {createEmpty, extend, isEmpty} from 'ol/extent';
-import {Congregation, DoNotVisit, Preacher, RegistryEntry, Territory} from './domains/Congregation';
+import {
+  Congregation,
+  DoNotVisit,
+  Preacher,
+  RegistryEntry,
+  Territory,
+  TerritoryOverview
+} from './domains/Congregation';
 import {jsPDF} from 'jspdf';
 import {buffer} from 'ol/extent';
 import {click, shiftKeyOnly} from 'ol/events/condition';
@@ -1788,49 +1795,109 @@ export class AppComponent implements OnInit {
   protected synchronize() {
     const uuidFilePattern = /^([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\.json$/i;
 
-    this.mapService.loadTerritories().subscribe({
-      next: territories => {
-        const localUuids = new Set(
-          territories
-            .map(territory => territory.uuid?.toLowerCase())
-            .filter((uuid): uuid is string => Boolean(uuid))
-        );
+    this.mapService.loadCongregation().subscribe({
+      next: congregations => {
+        const congregation = congregations[0];
 
-        this.apiService.loadJsonFileNames().subscribe({
-          next: fileNames => {
-            const obsoleteUuids = fileNames
-              .map(fileName => fileName.match(uuidFilePattern)?.[1])
-              .filter((uuid): uuid is string => Boolean(uuid))
-              .filter(uuid => !localUuids.has(uuid.toLowerCase()));
+        if (!congregation) {
+          this.toastr.error('Synchronization failed because no local congregation exists.');
+          return;
+        }
 
-            if (obsoleteUuids.length === 0) {
-              this.toastr.info('Synchronization complete. No remote files need to be deleted.');
-              return;
-            }
+        this.apiService.setCongregation(congregation);
 
-            from(obsoleteUuids).pipe(
-              concatMap(uuid => this.apiService.deleteJsonFile(uuid)),
-              toArray()
-            ).subscribe({
-              next: deletedFiles => {
-                this.toastr.success(`Synchronization complete. ${deletedFiles.length} remote file(s) deleted.`);
+        this.mapService.loadTerritories().subscribe({
+          next: territories => {
+            const localUuids = new Set(
+              territories
+                .map(territory => territory.uuid?.toLowerCase())
+                .filter((uuid): uuid is string => Boolean(uuid))
+            );
+
+            this.mapService.loadMapDesign().subscribe({
+              next: territoryMaps => {
+                this.apiService.loadJsonFileNames().subscribe({
+                  next: fileNames => {
+                    const obsoleteUuids = fileNames
+                      .map(fileName => fileName.match(uuidFilePattern)?.[1])
+                      .filter((uuid): uuid is string => Boolean(uuid))
+                      .filter(uuid => !localUuids.has(uuid.toLowerCase()));
+                    const updatedAt = new Date();
+                    const territoryOverviews = congregation.preacherList.map(preacher => {
+                      const assignedTerritoryNumbers = new Set(
+                        territories
+                          .filter(territory =>
+                            territory.registryEntryList?.some(entry =>
+                              !entry.returnDate && entry.preacher.name === preacher.name
+                            )
+                          )
+                          .map(territory => territory.number)
+                      );
+                      const overview = new TerritoryOverview();
+                      overview.preacherName = preacher.name;
+                      overview.territoryList = territoryMaps.filter(map =>
+                        assignedTerritoryNumbers.has(map.territoryNumber)
+                      );
+                      overview.updatedAt = updatedAt;
+
+                      return {
+                        fileName: this.createPreacherNameHashCode(preacher.name),
+                        overview
+                      };
+                    });
+                    const synchronizationRequests = [
+                      ...obsoleteUuids.map(uuid => this.apiService.deleteJsonFile(uuid)),
+                      ...territoryOverviews.map(item => this.apiService.uploadJson(item.fileName, item.overview))
+                    ];
+
+                    from(synchronizationRequests).pipe(
+                      concatMap(request => request),
+                      toArray()
+                    ).subscribe({
+                      next: () => {
+                        this.toastr.success(
+                          `Synchronization complete. ${obsoleteUuids.length} remote territory file(s) deleted and ` +
+                          `${territoryOverviews.length} preacher overview(s) uploaded.`
+                        );
+                      },
+                      error: error => {
+                        console.error('Error synchronizing remote data:', error);
+                        this.toastr.error('Synchronization failed while updating remote data.');
+                      }
+                    });
+                  },
+                  error: error => {
+                    console.error('Error loading remote territory files:', error);
+                    this.toastr.error('Synchronization failed while loading remote files.');
+                  }
+                });
               },
               error: error => {
-                console.error('Error deleting obsolete remote territory files:', error);
-                this.toastr.error('Synchronization failed while deleting remote files.');
+                console.error('Error loading local territory maps:', error);
+                this.toastr.error('Synchronization failed while loading local territory maps.');
               }
             });
           },
           error: error => {
-            console.error('Error loading remote territory files:', error);
-            this.toastr.error('Synchronization failed while loading remote files.');
+            console.error('Error loading local territories:', error);
+            this.toastr.error('Synchronization failed while loading local territories.');
           }
         });
       },
       error: error => {
-        console.error('Error loading local territories:', error);
-        this.toastr.error('Synchronization failed while loading local territories.');
+        console.error('Error loading local congregation:', error);
+        this.toastr.error('Synchronization failed while loading the local congregation.');
       }
     });
+  }
+
+  private createPreacherNameHashCode(preacherName: string): string {
+    let hashCode = 0;
+
+    for (let index = 0; index < preacherName.length; index++) {
+      hashCode = (Math.imul(31, hashCode) + preacherName.charCodeAt(index)) | 0;
+    }
+
+    return hashCode.toString();
   }
 }
