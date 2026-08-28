@@ -115,6 +115,10 @@ $method = $_SERVER['REQUEST_METHOD'];
 $name = $_GET['name'] ?? null;
 $action = $_GET['action'] ?? null;
 
+if ($action === 'ping') {
+  jsonResponse(['status' => 'ok']);
+}
+
 switch ($method) {
 
   case 'GET':
@@ -220,9 +224,7 @@ switch ($method) {
 
     $filePath = getJsonFilePath($dataDir, $name);
 
-    if (!file_exists($filePath)) {
-      jsonResponse(['error' => 'Datei nicht gefunden'], 404);
-    }
+    $fileExists = file_exists($filePath);
 
     $json = readJsonBody();
 
@@ -236,9 +238,9 @@ switch ($method) {
     }
 
     jsonResponse([
-      'message' => 'Datei geändert',
+      'message' => $fileExists ? 'Datei geändert' : 'Datei erstellt',
       'file' => basename($filePath)
-    ]);
+    ], $fileExists ? 200 : 201);
     break;
 
 

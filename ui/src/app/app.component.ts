@@ -33,6 +33,7 @@ import {click, shiftKeyOnly} from 'ol/events/condition';
 import {SettingsComponent} from './components/settings/settings.component';
 import {getCenter} from 'ol/extent';
 import {transform} from 'ol/proj';
+import {ApiService} from './services/api.service';
 
 
 @Component({
@@ -106,7 +107,8 @@ export class AppComponent implements OnInit {
     private dialog: MatDialog,
     private mapService: MapService,
     private appService: AppService,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private apiService: ApiService
   ) {
   }
 
@@ -673,6 +675,15 @@ export class AppComponent implements OnInit {
         this.territoryNumbers.push(territory.number);
       }
       this.territoryNames.add(territory.name);
+
+      this.apiService.setCongregation(this.congregation);
+      this.apiService.uploadTerritoryMap(mapDesign).subscribe({
+        next: () => this.toastr.success('Territory map uploaded successfully'),
+        error: error => {
+          console.error('Error uploading territory map:', error);
+          this.toastr.error('Territory was saved locally, but its map could not be uploaded');
+        }
+      });
     })
 
   }
@@ -807,6 +818,7 @@ export class AppComponent implements OnInit {
     this.mapService.loadCongregation().subscribe({
       "next": congregation => {
         this.congregation = congregation[0];
+        this.apiService.setCongregation(this.congregation)
 
         // Sort preachers by name
         this.congregation.preacherList = this.congregation.preacherList.sort((a, b) => (a.name > b.name ? 1 : -1));
@@ -1738,21 +1750,41 @@ export class AppComponent implements OnInit {
   }
 
   protected uploadChanges() {
-    // First assign UUID
-    let toBeExported: Territory[] = [];
-    this.territoriesSorted.forEach(t => {
-      if (!t.exported) {
-        t.uuid = crypto.randomUUID()
-        toBeExported.push(t);
+    this.mapService.loadMapDesign().subscribe({
+      next: (mapDesigns: TerritoryMap[]) => {
+        // First assign UUID
+        let toBeExported: Territory[] = [];
+        this.territoriesSorted.forEach(t => {
+          if (!t.exported) {
+            t.uuid = crypto.randomUUID()
+            toBeExported.push(t);
+          }
+        })
+        // Then upload each one of them
+        toBeExported.forEach(t => {
+          console.log(t.uuid)
+          let map = mapDesigns.find( m => m.territoryNumber == t.number);
+          if (map) {
+            this.apiService.uploadJson(t.uuid, map).subscribe(() => {
+              this.toastr.success(`Territory ${t.number} is now exported`);
+              this.changesToBeSaved -= 1
+              t.mapExist = true;
+              t.exported = true;
+              this.mapService.saveTerritory(t).subscribe(() => {})
+            })
+          } else {
+            this.toastr.error(`Territory ${t.number} is not exported`);
+          }
+        })
+      },
+      error: (error) => {
+        console.error('Error loading map design:', error);
       }
-    })
+    });
 
-    // Then upload each one of them
-    toBeExported.forEach(t => {
-      console.log(t.uuid)
-      // this.mapService. uploadTerritory(t).subscribe(() => {
-      //   this.toastr.success(`Territory ${t.territoryNumber} is now exported`);
-      // })
-    })
+  }
+
+  protected synchronize() {
+
   }
 }

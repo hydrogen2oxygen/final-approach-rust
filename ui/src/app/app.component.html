@@ -132,7 +132,13 @@
   @if (persona == 'MANAGER' || persona == 'DESIGNER') {
     <button class="icon-button" [class.icon-success]="changesToBeSaved == 0" [class.icon-warning]="changesToBeSaved > 0" title="UPLOAD CHANGES" (click)="uploadChanges()">
       <mat-icon>cloud_upload</mat-icon>
-      <span>... UPLOAD {{changesToBeSaved}} CHANGES NOW</span>
+      @if (changesToBeSaved > 0) {
+        <span>... UPLOAD {{changesToBeSaved}} CHANGES NOW</span>
+      }
+    </button>
+
+    <button class="icon-button icon-primary" title="SYNCHRONIZE" (click)="synchronize()">
+      <mat-icon>cloud_sync</mat-icon>
     </button>
   }
 </div>

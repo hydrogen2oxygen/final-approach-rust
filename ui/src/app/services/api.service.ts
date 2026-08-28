@@ -2,6 +2,12 @@ import {inject, Injectable} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
 import {BehaviorSubject, concatMap, from, map, Observable, of, switchMap, tap, toArray} from 'rxjs';
 import {Congregation} from '../domains/Congregation';
+import {TerritoryMap} from '../domains/MapDesign';
+
+export interface ApiFileResponse {
+  message: string;
+  file: string;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -18,13 +24,37 @@ export class ApiService {
     this.congregation = congregation;
   }
 
+  private apiUrl(params: Record<string, string> = {}): string {
+    const rootUrl = this.congregation.rootURL.replace(/\/+$/, '');
+    const query = new URLSearchParams(params).toString();
+    const url = `${rootUrl}/${encodeURIComponent(this.congregation.apiUUID)}.php`;
+
+    return query ? `${url}?${query}` : url;
+  }
+
+  private apiHeaders(): Record<string, string> {
+    return {
+      'X-API-KEY': this.congregation.apiSECRET
+    };
+  }
+
   ping(): Observable<any> {
-    return this.http.get(`${this.congregation.rootURL}/${this.congregation.apiUUID}.php?action=ping`, {
-      headers: {
-        'X-API-KEY': this.congregation.apiSECRET
-      },
+    return this.http.get(this.apiUrl({action: 'ping'}), {
+      headers: this.apiHeaders(),
       responseType: 'text'
     });
+  }
+
+  uploadJson<T>(name: string, data: T): Observable<ApiFileResponse> {
+    return this.http.put<ApiFileResponse>(
+      this.apiUrl({name}),
+      data,
+      {headers: this.apiHeaders()}
+    );
+  }
+
+  uploadTerritoryMap(map: TerritoryMap): Observable<ApiFileResponse> {
+    return this.uploadJson(map.territoryNumber, map);
   }
 
 
@@ -48,9 +78,7 @@ export class ApiService {
           concatMap(file => {
             const localUrl = '/' + file;
             const remoteName = file.substring('browser/'.length);
-            const separator = this.congregation.rootURL.includes('?') ? '&' : '?';
-            const uploadUrl =
-              `${this.congregation.rootURL}/${this.congregation.apiUUID}.php${separator}action=upload-ui&name=${encodeURIComponent(remoteName)}`;
+            const uploadUrl = this.apiUrl({action: 'upload-ui', name: remoteName});
 
             const fileRequest =
               file === 'browser/index.html'
@@ -88,9 +116,7 @@ export class ApiService {
 
             return fileRequest.pipe(
               switchMap(blob => this.http.post(uploadUrl, blob, {
-                headers: {
-                  'X-API-KEY': this.congregation.apiSECRET
-                },
+                headers: this.apiHeaders(),
                 responseType: 'text'
               })),
               tap(() => {

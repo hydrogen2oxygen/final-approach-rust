@@ -1,5 +1,12 @@
 # Final Approach UI - Rust Edition
 
+## Build UI
+You need to build the UI first, using the following command:
+````shell
+npm run build
+````
+This will build the UI and place it in the `dist` folder, from where you can upload it to your web server.
+
 ## Persona
 
 ### Designer
