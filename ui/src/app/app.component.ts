@@ -34,6 +34,7 @@ import {SettingsComponent} from './components/settings/settings.component';
 import {getCenter} from 'ol/extent';
 import {transform} from 'ol/proj';
 import {ApiService} from './services/api.service';
+import {concatMap, from, toArray} from 'rxjs';
 
 
 @Component({
@@ -1785,6 +1786,51 @@ export class AppComponent implements OnInit {
   }
 
   protected synchronize() {
+    const uuidFilePattern = /^([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\.json$/i;
 
+    this.mapService.loadTerritories().subscribe({
+      next: territories => {
+        const localUuids = new Set(
+          territories
+            .map(territory => territory.uuid?.toLowerCase())
+            .filter((uuid): uuid is string => Boolean(uuid))
+        );
+
+        this.apiService.loadJsonFileNames().subscribe({
+          next: fileNames => {
+            const obsoleteUuids = fileNames
+              .map(fileName => fileName.match(uuidFilePattern)?.[1])
+              .filter((uuid): uuid is string => Boolean(uuid))
+              .filter(uuid => !localUuids.has(uuid.toLowerCase()));
+
+            if (obsoleteUuids.length === 0) {
+              this.toastr.info('Synchronization complete. No remote files need to be deleted.');
+              return;
+            }
+
+            from(obsoleteUuids).pipe(
+              concatMap(uuid => this.apiService.deleteJsonFile(uuid)),
+              toArray()
+            ).subscribe({
+              next: deletedFiles => {
+                this.toastr.success(`Synchronization complete. ${deletedFiles.length} remote file(s) deleted.`);
+              },
+              error: error => {
+                console.error('Error deleting obsolete remote territory files:', error);
+                this.toastr.error('Synchronization failed while deleting remote files.');
+              }
+            });
+          },
+          error: error => {
+            console.error('Error loading remote territory files:', error);
+            this.toastr.error('Synchronization failed while loading remote files.');
+          }
+        });
+      },
+      error: error => {
+        console.error('Error loading local territories:', error);
+        this.toastr.error('Synchronization failed while loading local territories.');
+      }
+    });
   }
 }

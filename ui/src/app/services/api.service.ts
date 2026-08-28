@@ -57,6 +57,18 @@ export class ApiService {
     return this.uploadJson(map.territoryNumber, map);
   }
 
+  loadJsonFileNames(): Observable<string[]> {
+    return this.http.get<string[]>(this.apiUrl(), {
+      headers: this.apiHeaders()
+    });
+  }
+
+  deleteJsonFile(name: string): Observable<ApiFileResponse> {
+    return this.http.delete<ApiFileResponse>(this.apiUrl({name}), {
+      headers: this.apiHeaders()
+    });
+  }
+
 
 
   uploadUI(): Observable<void> {
