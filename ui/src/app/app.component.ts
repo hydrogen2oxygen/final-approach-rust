@@ -105,6 +105,9 @@ export class AppComponent implements OnInit {
   tabTerritory: boolean = true;
   modalPreacherDetails: boolean = false;
   preacherList: Preacher[] = [];
+  remoteOverviewId: string | null = null;
+  remoteOverviewName: string | null = null;
+  isRemoteOverview: boolean = false;
 
   isLocalhost =
     window.location.hostname === 'localhost' ||
@@ -190,6 +193,12 @@ export class AppComponent implements OnInit {
       }
 
       this.lastSelectedFeature = selectedFeatures[selectedFeatures.length - 1];
+
+      if (!this.isLocalhost && this.isRemoteOverview) {
+        this.navigateToRemoteTerritory(this.lastSelectedFeature);
+        return;
+      }
+
       this.lastSelectedTerritory = this.territoriesSorted.find(t => t.number === this.lastSelectedFeature.get('territoryNumber'))
       this.territoryCustomNumber.setValue(this.lastSelectedFeature.get('territoryNumber'));
       this.territoryCustomName.setValue(this.lastSelectedFeature.get('territoryName'));
@@ -258,13 +267,41 @@ export class AppComponent implements OnInit {
     const id = urlParams.get('id');
     if (!this.isLocalhost) {
       this.persona = Personas.PREACHER
-      // The map is loaded from the URL parameter, id=<id>,folder=<folder>
-      const path = urlParams.get('path');
+      this.remoteOverviewId = urlParams.get('overview');
+
       if (id) {
-        this.mapService.loadMapDesignById(id, path).subscribe((mapDesign: TerritoryMap) => {
-          this.loadTerritoryMap(mapDesign);
-          this.zoomToExtendOfAllFeatures();
-        });
+        const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        const preacherNameHashPattern = /^-?\d+$/;
+
+        if (uuidPattern.test(id)) {
+          this.mapService.loadMapDesignById<TerritoryMap>(id).subscribe({
+            next: mapDesign => {
+              this.loadTerritoryMap(mapDesign);
+              this.zoomToExtendOfAllFeatures();
+            },
+            error: error => {
+              console.error('Error loading remote territory map:', error);
+              this.toastr.error('The requested territory map could not be loaded.');
+            }
+          });
+        } else if (preacherNameHashPattern.test(id)) {
+          this.remoteOverviewId = id;
+          this.isRemoteOverview = true;
+
+          this.mapService.loadMapDesignById<TerritoryOverview>(id).subscribe({
+            next: overview => {
+              this.remoteOverviewName = overview.preacherName;
+              overview.territoryList.forEach(mapDesign => this.loadTerritoryMap(mapDesign));
+              this.zoomToExtendOfAllFeatures();
+            },
+            error: error => {
+              console.error('Error loading remote territory overview:', error);
+              this.toastr.error('The requested territory overview could not be loaded.');
+            }
+          });
+        } else {
+          this.toastr.error('The URL contains neither a valid territory UUID nor a preacher hash code.');
+        }
       }
     } else {
 
@@ -647,6 +684,11 @@ export class AppComponent implements OnInit {
     });
   }
 
+  /**
+   * Zooms to the extend of remote loaded features.
+   * Intended to use only remote, where no center information is available.
+   * @private
+   */
   private zoomToExtendOfAllFeatures(): void {
     if (!this.map) {
       return;
@@ -680,8 +722,34 @@ export class AppComponent implements OnInit {
         businessSector: mapDesign.businessSector,
         industrySector: mapDesign.industrySector
       });
+      feature.set('remoteTerritoryUuid', mapDesign.url);
       this.source.addFeature(feature);
     }
+  }
+
+  protected navigateBackToOverview(): void {
+    if (!this.remoteOverviewId) {
+      return;
+    }
+
+    const params = new URLSearchParams({id: this.remoteOverviewId});
+    window.location.search = params.toString();
+  }
+
+  private navigateToRemoteTerritory(feature: Feature): void {
+    const territoryUuid = feature.get('remoteTerritoryUuid');
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+    if (!territoryUuid || !uuidPattern.test(territoryUuid)) {
+      this.toastr.error('This territory has no valid remote UUID. Please synchronize the data again.');
+      return;
+    }
+
+    const params = new URLSearchParams({
+      id: territoryUuid,
+      overview: this.remoteOverviewId!
+    });
+    window.location.search = params.toString();
   }
 
   protected saveMapForTerritory() {
@@ -1862,9 +1930,16 @@ export class AppComponent implements OnInit {
                       );
                       const overview = new TerritoryOverview();
                       overview.preacherName = preacher.name;
-                      overview.territoryList = territoryMaps.filter(map =>
-                        assignedTerritoryNumbers.has(map.territoryNumber)
-                      );
+                      overview.territoryList = territoryMaps
+                        .filter(map => assignedTerritoryNumbers.has(map.territoryNumber))
+                        .map(map => {
+                          const territory = territories.find(item => item.number === map.territoryNumber);
+
+                          return {
+                            ...map,
+                            url: territory?.uuid ?? ''
+                          };
+                        });
                       overview.updatedAt = updatedAt;
 
                       return {

@@ -66,8 +66,8 @@ export class MapService {
     return this.http.delete<{status: string}>(`${environment.apiBaseUrl}/mapDesigns/${territoryNumber}`);
   }
 
-  loadMapDesignById(territoryNumber: string, path:string) {
-    return this.http.get<TerritoryMap>(`${path}/${territoryNumber}`);
+  loadMapDesignById<T>(id: string): Observable<T> {
+    return this.http.get<T>(`assets/data/${encodeURIComponent(id)}.json`);
   }
 
   // TERRITORY

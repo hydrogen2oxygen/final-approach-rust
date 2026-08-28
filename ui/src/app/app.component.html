@@ -117,6 +117,17 @@
       <button class="icon-button icon-primary" title="PREACHER" (click)="openPersonaDialog()">
         <mat-icon>people</mat-icon>
         <span>PREACHER</span></button>
+      @if (isRemoteOverview) {
+        <span class="icon-button icon-success remote-context-control" title="Territory overview">
+          <mat-icon>view_list</mat-icon>
+          OVERVIEW: {{ remoteOverviewName || 'Preacher' }}
+        </span>
+      } @else if (remoteOverviewId) {
+        <button class="icon-button icon-success remote-context-control" title="Back to territory overview" (click)="navigateBackToOverview()">
+          <mat-icon>arrow_back</mat-icon>
+          BACK TO OVERVIEW
+        </button>
+      }
       <button class="icon-button icon-primary" title="Share Link">
         <mat-icon>share</mat-icon>
       </button>
