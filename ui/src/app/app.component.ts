@@ -263,6 +263,7 @@ export class AppComponent implements OnInit {
       if (id) {
         this.mapService.loadMapDesignById(id, path).subscribe((mapDesign: TerritoryMap) => {
           this.loadTerritoryMap(mapDesign);
+          this.zoomToExtendOfAllFeatures();
         });
       }
     } else {
@@ -304,6 +305,19 @@ export class AppComponent implements OnInit {
 
 
   featureFunction(featureLike: FeatureLike): Style {
+
+    if (!this.congregation) {
+      // console.log('no congregation data')
+      this.congregation = new Congregation();
+      this.congregation.defaultFillColor = '#005793';
+      this.congregation.defaultStrokeColor = '#ff0000';
+      this.congregation.defaultTextFillColor = '#000000';
+      this.congregation.defaultTextStrokeColor = '#ffffff';
+      this.congregation.foreignFillColor = '#930091';
+      this.congregation.foreignStrokeColor = '#ff0000';
+      this.congregation.foreignTextFillColor = '#000000';
+      this.congregation.foreignTextStrokeColor = '#ffffff';
+    }
 
     let style = this.createStyle();
 
@@ -625,10 +639,29 @@ export class AppComponent implements OnInit {
           this.territoryNumbers.push(mapDesign.territoryNumber);
           this.territoryNames.add(mapDesign.territoryName);
         });
+
       },
       error: (error) => {
         console.error('Error loading map design:', error);
       }
+    });
+  }
+
+  private zoomToExtendOfAllFeatures(): void {
+    if (!this.map) {
+      return;
+    }
+
+    const extent = this.source.getExtent();
+
+    if (isEmpty(extent)) {
+      return;
+    }
+
+    this.map.getView().fit(extent, {
+      padding: [40, 40, 40, 40],
+      maxZoom: 18,
+      duration: 300
     });
   }
 

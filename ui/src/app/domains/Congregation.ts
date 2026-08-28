@@ -26,6 +26,17 @@ export class Congregation {
   rootURL: string = "";
 }
 
+export class ColorSettings {
+  defaultFillColor:string = "";
+  defaultStrokeColor:string = "";
+  defaultTextFillColor:string = "";
+  defaultTextStrokeColor:string = "";
+  foreignFillColor:string = "";
+  foreignStrokeColor:string = "";
+  foreignTextFillColor:string = "";
+  foreignTextStrokeColor:string = "";
+}
+
 export class Preacher {
   name:string = '';
   shortName:string | undefined;
