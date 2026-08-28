@@ -41,7 +41,7 @@ import {SettingsComponent} from './components/settings/settings.component';
 import {getCenter} from 'ol/extent';
 import {transform} from 'ol/proj';
 import {ApiService} from './services/api.service';
-import {concatMap, from, toArray} from 'rxjs';
+import {concatMap, from, tap, toArray} from 'rxjs';
 
 
 @Component({
@@ -1757,41 +1757,6 @@ export class AppComponent implements OnInit {
     })
   }
 
-  protected uploadChanges() {
-    this.mapService.loadMapDesign().subscribe({
-      next: (mapDesigns: TerritoryMap[]) => {
-        // First assign UUID
-        let toBeExported: Territory[] = [];
-        this.territoriesSorted.forEach(t => {
-          if (!t.exported) {
-            t.uuid = crypto.randomUUID()
-            toBeExported.push(t);
-          }
-        })
-        // Then upload each one of them
-        toBeExported.forEach(t => {
-          console.log(t.uuid)
-          let map = mapDesigns.find( m => m.territoryNumber == t.number);
-          if (map) {
-            this.apiService.uploadJson(t.uuid, map).subscribe(() => {
-              this.toastr.success(`Territory ${t.number} is now exported`);
-              this.changesToBeSaved -= 1
-              t.mapExist = true;
-              t.exported = true;
-              this.mapService.saveTerritory(t).subscribe(() => {})
-            })
-          } else {
-            this.toastr.error(`Territory ${t.number} is not exported`);
-          }
-        })
-      },
-      error: (error) => {
-        console.error('Error loading map design:', error);
-      }
-    });
-
-  }
-
   protected synchronize() {
     const uuidFilePattern = /^([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\.json$/i;
 
@@ -1808,20 +1773,49 @@ export class AppComponent implements OnInit {
 
         this.mapService.loadTerritories().subscribe({
           next: territories => {
-            const localUuids = new Set(
-              territories
-                .map(territory => territory.uuid?.toLowerCase())
-                .filter((uuid): uuid is string => Boolean(uuid))
-            );
-
             this.mapService.loadMapDesign().subscribe({
               next: territoryMaps => {
                 this.apiService.loadJsonFileNames().subscribe({
                   next: fileNames => {
+                    const remoteUuids = new Set(
+                      fileNames
+                        .map(fileName => fileName.match(uuidFilePattern)?.[1]?.toLowerCase())
+                        .filter((uuid): uuid is string => Boolean(uuid))
+                    );
+
+                    territories.forEach(territory => {
+                      if (!territory.uuid) {
+                        territory.uuid = crypto.randomUUID();
+                      }
+                    });
+
+                    const localUuids = new Set(
+                      territories.map(territory => territory.uuid!.toLowerCase())
+                    );
                     const obsoleteUuids = fileNames
                       .map(fileName => fileName.match(uuidFilePattern)?.[1])
                       .filter((uuid): uuid is string => Boolean(uuid))
                       .filter(uuid => !localUuids.has(uuid.toLowerCase()));
+                    const territoryMapByNumber = new globalThis.Map(
+                      territoryMaps.map(map => [map.territoryNumber, map])
+                    );
+                    const territoriesToUpload = territories.filter(territory =>
+                      !territory.exported || !remoteUuids.has(territory.uuid!.toLowerCase())
+                    );
+                    const missingMapDesigns = territoriesToUpload.filter(territory =>
+                      !territoryMapByNumber.has(territory.number)
+                    );
+                    const territoryUploads = territoriesToUpload
+                      .filter(territory => territoryMapByNumber.has(territory.number))
+                      .map(territory => this.apiService
+                        .uploadJson(territory.uuid!, territoryMapByNumber.get(territory.number)!)
+                        .pipe(
+                          tap(() => {
+                            territory.mapExist = true;
+                            territory.exported = true;
+                          }),
+                          concatMap(() => this.mapService.saveTerritory(territory))
+                        ));
                     const updatedAt = new Date();
                     const territoryOverviews = congregation.preacherList.map(preacher => {
                       const assignedTerritoryNumbers = new Set(
@@ -1847,6 +1841,7 @@ export class AppComponent implements OnInit {
                     });
                     const synchronizationRequests = [
                       ...obsoleteUuids.map(uuid => this.apiService.deleteJsonFile(uuid)),
+                      ...territoryUploads,
                       ...territoryOverviews.map(item => this.apiService.uploadJson(item.fileName, item.overview))
                     ];
 
@@ -1855,10 +1850,29 @@ export class AppComponent implements OnInit {
                       toArray()
                     ).subscribe({
                       next: () => {
+                        this.changesToBeSaved = missingMapDesigns.length;
+                        this.territoriesSorted.forEach(displayedTerritory => {
+                          const synchronizedTerritory = territories.find(territory =>
+                            territory.number === displayedTerritory.number
+                          );
+
+                          if (synchronizedTerritory) {
+                            displayedTerritory.uuid = synchronizedTerritory.uuid;
+                            displayedTerritory.mapExist = synchronizedTerritory.mapExist;
+                            displayedTerritory.exported = synchronizedTerritory.exported;
+                          }
+                        });
+
                         this.toastr.success(
                           `Synchronization complete. ${obsoleteUuids.length} remote territory file(s) deleted and ` +
+                          `${territoryUploads.length} territory map(s) and ` +
                           `${territoryOverviews.length} preacher overview(s) uploaded.`
                         );
+
+                        if (missingMapDesigns.length > 0) {
+                          const territoryNumbers = missingMapDesigns.map(territory => territory.number).join(', ');
+                          this.toastr.warning(`No map design exists for territory: ${territoryNumbers}`);
+                        }
                       },
                       error: error => {
                         console.error('Error synchronizing remote data:', error);
