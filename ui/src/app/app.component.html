@@ -51,10 +51,11 @@
                 }
               </button>
             } @else {
-              <div class="global-search-result">
+              <button class="global-search-result global-search-result-action" type="button"
+                      (click)="selectPreacherSearchResult(result)">
                 <span class="global-search-type">{{ result.type }}</span>
                 <span class="global-search-label">{{ result.label }}</span>
-              </div>
+              </button>
             }
           }
         </div>
@@ -374,7 +375,7 @@
                   <button class="btn-sm btn btn-danger btn-sm2" (click)="deletePreacher(p)" title="delete">DEL</button>
                   <button class="btn-sm btn btn-warning btn-sm2" style="margin-left: 0.2rem" (click)="switchGroup(p)" title="switchGroup">SWITCH</button>
                 <td>
-                  <button class="btn-sm btn btn-link btn-sm2" (click)="openPreacherTerritories(p)"
+                  <button class="btn-sm btn btn-primary btn-sm2" style="font-weight: bolder" (click)="openPreacherTerritories(p)"
                           title="Show assigned territories">{{ p.name }}</button>
                 </td>
                 <td>{{ getAssignedTerritories(p).length }}</td>

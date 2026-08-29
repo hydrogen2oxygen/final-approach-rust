@@ -55,6 +55,7 @@ import {
 interface SearchResult {
   label: string;
   details: string;
+  preacherName?: string;
   territoryNumber?: string;
   type: 'Territory' | 'Preacher';
 }
@@ -2167,10 +2168,11 @@ export class AppComponent implements OnInit {
       .map(preacher => ({
         label: preacher.name,
         details: '',
+        preacherName: preacher.name,
         type: 'Preacher' as const
       }));
 
-    return [...territoryResults, ...preacherResults];
+    return [...preacherResults, ...territoryResults];
   }
 
   protected selectTerritorySearchResult(result: SearchResult): void {
@@ -2179,6 +2181,22 @@ export class AppComponent implements OnInit {
     }
 
     this.selectTerritoryByNumber(result.territoryNumber);
+  }
+
+  protected selectPreacherSearchResult(result: SearchResult): void {
+    if (result.type !== 'Preacher' || !result.preacherName) {
+      return;
+    }
+
+    const preacher = this.congregation?.preacherList.find(item => item.name === result.preacherName);
+
+    if (!preacher) {
+      this.toastr.error('The selected preacher could not be found.');
+      return;
+    }
+
+    this.searchQuery = '';
+    this.openPreacherTerritories(preacher);
   }
 
   private selectTerritoryByNumber(territoryNumber: string): boolean {
