@@ -67,7 +67,10 @@ export class MapService {
   }
 
   loadMapDesignById<T>(id: string): Observable<T> {
-    return this.http.get<T>(`assets/data/${encodeURIComponent(id)}.json`);
+    const cacheBuster = Date.now().toString();
+    return this.http.get<T>(`assets/data/${encodeURIComponent(id)}.json`, {
+      params: {v: cacheBuster}
+    });
   }
 
   // TERRITORY
