@@ -47,6 +47,10 @@ import {
   RemoteOverviewHistoryEntry,
   RemoteOverviewHistoryService
 } from './services/remote-overview-history.service';
+import {
+  PreacherTerritoriesDialogComponent,
+  PreacherTerritoryAssignment
+} from './components/preacher-territories-dialog/preacher-territories-dialog.component';
 
 interface SearchResult {
   label: string;
@@ -1889,6 +1893,41 @@ export class AppComponent implements OnInit {
     })
   }
 
+  protected getAssignedTerritories(preacher: Preacher): PreacherTerritoryAssignment[] {
+    return this.territoriesSorted.flatMap(territory => {
+      const activeAssignment = territory.registryEntryList?.find(entry =>
+        !entry.returnDate && entry.preacher.name === preacher.name
+      );
+
+      if (!activeAssignment) {
+        return [];
+      }
+
+      return [{
+        territoryNumber: territory.number,
+        territoryName: territory.name,
+        assignedAt: activeAssignment.assignDate
+      }];
+    });
+  }
+
+  protected openPreacherTerritories(preacher: Preacher): void {
+    const dialogRef = this.dialog.open(PreacherTerritoriesDialogComponent, {
+      width: '40rem',
+      maxWidth: '90vw',
+      data: {
+        preacherName: preacher.name,
+        assignments: this.getAssignedTerritories(preacher)
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((territoryNumber: string | undefined) => {
+      if (territoryNumber && this.selectTerritoryByNumber(territoryNumber)) {
+        this.register();
+      }
+    });
+  }
+
   protected switchGroup(p: Preacher) {
 
     this.preacherList.splice(this.preacherList.indexOf(p), 1);
@@ -2139,15 +2178,23 @@ export class AppComponent implements OnInit {
       return;
     }
 
-    const territory = this.territoriesSorted.find(item => item.number === result.territoryNumber);
+    this.selectTerritoryByNumber(result.territoryNumber);
+  }
+
+  private selectTerritoryByNumber(territoryNumber: string): boolean {
+    if (!this.map) {
+      return false;
+    }
+
+    const territory = this.territoriesSorted.find(item => item.number === territoryNumber);
     const feature = this.source.getFeatures().find(item =>
-      item.get('territoryNumber') === result.territoryNumber
+      item.get('territoryNumber') === territoryNumber
     );
     const geometry = feature?.getGeometry();
 
     if (!territory || !feature || !geometry) {
       this.toastr.error('The selected territory has no map feature.');
-      return;
+      return false;
     }
 
     this.clearSelectedFeatures();
@@ -2168,5 +2215,7 @@ export class AppComponent implements OnInit {
       maxZoom: 21,
       duration: 500
     });
+
+    return true;
   }
 }

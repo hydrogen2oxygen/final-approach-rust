@@ -363,6 +363,7 @@
           <tr>
             <th>ACTIONS</th>
             <th>NAME</th>
+            <th>ASSIGNED TERRITORIES</th>
             <th>REMOTE LINK</th>
           </tr>
           </thead>
@@ -372,7 +373,11 @@
                 <td>
                   <button class="btn-sm btn btn-danger btn-sm2" (click)="deletePreacher(p)" title="delete">DEL</button>
                   <button class="btn-sm btn btn-warning btn-sm2" style="margin-left: 0.2rem" (click)="switchGroup(p)" title="switchGroup">SWITCH</button>
-                <td>{{ p.name }}</td>
+                <td>
+                  <button class="btn-sm btn btn-link btn-sm2" (click)="openPreacherTerritories(p)"
+                          title="Show assigned territories">{{ p.name }}</button>
+                </td>
+                <td>{{ getAssignedTerritories(p).length }}</td>
                 <td><button class="btn-sm btn btn-primary btn-sm2" (click)="copyRemoteTerritoryOverviewLink(p)" title="copyURL">COPY URL</button></td>
               </tr>
             }

@@ -1,0 +1,36 @@
+<h2 mat-dialog-title>Assigned territories for {{ data.preacherName }}</h2>
+
+<mat-dialog-content>
+  @if (data.assignments.length > 0) {
+    <table class="table table-sm table-hover">
+      <thead>
+      <tr>
+        <th>ACTIONS</th>
+        <th>NUMBER</th>
+        <th>TERRITORY</th>
+        <th>ASSIGNED AT</th>
+      </tr>
+      </thead>
+      <tbody>
+        @for (assignment of data.assignments; track assignment.territoryNumber) {
+          <tr>
+            <td>
+              <button class="btn btn-sm btn-success" type="button" (click)="register(assignment)">
+                Register
+              </button>
+            </td>
+            <td>{{ assignment.territoryNumber }}</td>
+            <td>{{ assignment.territoryName }}</td>
+            <td>{{ assignment.assignedAt | date:'mediumDate' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  } @else {
+    <p>No territories are currently assigned.</p>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>Close</button>
+</mat-dialog-actions>
