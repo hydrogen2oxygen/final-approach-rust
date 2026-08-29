@@ -28,6 +28,40 @@
       <mat-icon>group</mat-icon> {{ congregation.foreignLanguageGroupName }}</button>
   }
 
+  @if (congregation && isLocalhost && persona !== 'PREACHER') {
+    <div class="global-search">
+      <mat-icon class="global-search-icon">search</mat-icon>
+      <input
+        type="search"
+        aria-label="Search territories or preachers"
+        placeholder="Search territories or preachers"
+        autocomplete="off"
+        [(ngModel)]="searchQuery">
+
+      @if (searchResults.length > 0) {
+        <div class="global-search-results">
+          @for (result of searchResults; track result.type + result.label) {
+            @if (result.type === 'Territory') {
+              <button class="global-search-result global-search-result-action" type="button"
+                      (click)="selectTerritorySearchResult(result)">
+                <span class="global-search-type">{{ result.type }}</span>
+                <span class="global-search-label">{{ result.label }}</span>
+                @if (result.details) {
+                  <span class="global-search-details">{{ result.details }}</span>
+                }
+              </button>
+            } @else {
+              <div class="global-search-result">
+                <span class="global-search-type">{{ result.type }}</span>
+                <span class="global-search-label">{{ result.label }}</span>
+              </div>
+            }
+          }
+        </div>
+      }
+    </div>
+  }
+
   @switch (persona) {
     @case ('DESIGNER') {
       <button class="icon-button icon-primary" title="DESIGNER" (click)="openPersonaDialog()">

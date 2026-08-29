@@ -48,6 +48,13 @@ import {
   RemoteOverviewHistoryService
 } from './services/remote-overview-history.service';
 
+interface SearchResult {
+  label: string;
+  details: string;
+  territoryNumber?: string;
+  type: 'Territory' | 'Preacher';
+}
+
 
 @Component({
   selector: 'app-root',
@@ -114,6 +121,7 @@ export class AppComponent implements OnInit {
   remoteOverviewName: string | null = null;
   isRemoteOverview: boolean = false;
   knownRemoteOverviewCount: number = 0;
+  searchQuery: string = '';
 
   isLocalhost =
     window.location.hostname === 'localhost' ||
@@ -221,6 +229,7 @@ export class AppComponent implements OnInit {
         this.removeInteraction();
         this.modeSelected = '';
         this.modalPreacherDetails = false;
+        this.searchQuery = '';
         this.clearSelectedFeatures();
       } else if (event.ctrlKey && event.key === 's') {
         event.preventDefault();
@@ -332,7 +341,7 @@ export class AppComponent implements OnInit {
 
     let font = '12px Calibri,sans-serif';
 
-    if (this.isRemoteOverview) {
+    if (!this.isLocalhost) {
       font = 'bolder 14px Calibri,sans-serif';
     }
 
@@ -2093,6 +2102,71 @@ export class AppComponent implements OnInit {
     }).catch(error => {
       console.error('Error copying remote territory overview URL:', error);
       this.toastr.error('The remote territory overview URL could not be copied.');
+    });
+  }
+
+  protected get searchResults(): SearchResult[] {
+    const query = this.searchQuery.trim().toLocaleLowerCase();
+
+    if (query.length < 2) {
+      return [];
+    }
+
+    const territoryResults = this.territoriesSorted
+      .filter(territory =>
+        territory.number.toLocaleLowerCase().includes(query)
+        || territory.name.toLocaleLowerCase().includes(query)
+      )
+      .map(territory => ({
+        label: territory.number,
+        details: territory.name,
+        territoryNumber: territory.number,
+        type: 'Territory' as const
+      }));
+    const preacherResults = (this.congregation?.preacherList ?? [])
+      .filter(preacher => preacher.name.toLocaleLowerCase().includes(query))
+      .map(preacher => ({
+        label: preacher.name,
+        details: '',
+        type: 'Preacher' as const
+      }));
+
+    return [...territoryResults, ...preacherResults];
+  }
+
+  protected selectTerritorySearchResult(result: SearchResult): void {
+    if (result.type !== 'Territory' || !result.territoryNumber || !this.map) {
+      return;
+    }
+
+    const territory = this.territoriesSorted.find(item => item.number === result.territoryNumber);
+    const feature = this.source.getFeatures().find(item =>
+      item.get('territoryNumber') === result.territoryNumber
+    );
+    const geometry = feature?.getGeometry();
+
+    if (!territory || !feature || !geometry) {
+      this.toastr.error('The selected territory has no map feature.');
+      return;
+    }
+
+    this.clearSelectedFeatures();
+    this.selectInteraction.getFeatures().push(feature);
+    feature.set('selected', true);
+    feature.setStyle(undefined);
+
+    this.lastSelectedFeature = feature;
+    this.lastSelectedTerritory = territory;
+    this.territoryCustomNumber.setValue(feature.get('territoryNumber'));
+    this.territoryCustomName.setValue(feature.get('territoryName'));
+    this.addAsForeignLanguageTerritory.setValue(feature.get('foreignLanguageGroup'));
+    this.searchQuery = '';
+    this.vectorLayer.changed();
+
+    this.map.getView().fit(geometry.getExtent(), {
+      padding: [30, 30, 30, 30],
+      maxZoom: 21,
+      duration: 500
     });
   }
 }
