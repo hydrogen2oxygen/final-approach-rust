@@ -317,6 +317,13 @@ export class AppComponent implements OnInit {
   }
 
   public createStyle(fillColor: any = [0, 0, 0, 0.1], strokeColor: any = [255, 0, 0, 0.5], strokeWidth: number = 5, textFillColor: string = '#000', textStrokeColor: string = '#fff', textStrokeWidth: number = 3): Style {
+
+    let font = '12px Calibri,sans-serif';
+
+    if (this.isRemoteOverview) {
+      font = 'bolder 14px Calibri,sans-serif';
+    }
+
     return new Style({
       fill: new Fill({
         color: fillColor
@@ -327,7 +334,7 @@ export class AppComponent implements OnInit {
       }),
       text: new Text({
         text: '',
-        font: '12px Calibri,sans-serif',
+        font: font,
         overflow: true,
         fill: new Fill({
           color: textFillColor,
