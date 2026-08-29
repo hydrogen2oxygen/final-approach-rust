@@ -114,6 +114,13 @@
       }
     }
     @case ('PREACHER') {
+      @if (knownRemoteOverviewCount > 0) {
+        <button class="icon-button icon-primary remote-context-control" title="Known territory overviews"
+                (click)="openRemoteOverviewHistory()">
+          <mat-icon>history</mat-icon>
+          {{ knownRemoteOverviewCount }}
+        </button>
+      }
       @if (isRemoteOverview) {
         <span class="icon-button icon-success remote-context-control" title="Territory overview">
           <mat-icon>view_list</mat-icon><b style="font-size: 1rem">{{ remoteOverviewName || 'Preacher' }}</b></span>

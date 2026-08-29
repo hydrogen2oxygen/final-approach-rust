@@ -42,6 +42,11 @@ import {getCenter} from 'ol/extent';
 import {transform} from 'ol/proj';
 import {ApiService} from './services/api.service';
 import {concatMap, from, tap, toArray} from 'rxjs';
+import {RemoteOverviewHistoryDialogComponent} from './components/remote-overview-history-dialog/remote-overview-history-dialog.component';
+import {
+  RemoteOverviewHistoryEntry,
+  RemoteOverviewHistoryService
+} from './services/remote-overview-history.service';
 
 
 @Component({
@@ -108,6 +113,7 @@ export class AppComponent implements OnInit {
   remoteOverviewId: string | null = null;
   remoteOverviewName: string | null = null;
   isRemoteOverview: boolean = false;
+  knownRemoteOverviewCount: number = 0;
 
   isLocalhost =
     window.location.hostname === 'localhost' ||
@@ -119,7 +125,8 @@ export class AppComponent implements OnInit {
     private mapService: MapService,
     private appService: AppService,
     private toastr: ToastrService,
-    private apiService: ApiService
+    private apiService: ApiService,
+    private remoteOverviewHistoryService: RemoteOverviewHistoryService
   ) {
   }
 
@@ -264,10 +271,13 @@ export class AppComponent implements OnInit {
 
     // check if there is a url parameter to load a specific map design
     const urlParams = new URLSearchParams(window.location.search);
-    const id = urlParams.get('id');
+    const requestedId = urlParams.get('id');
     if (!this.isLocalhost) {
       this.persona = Personas.PREACHER
       this.remoteOverviewId = urlParams.get('overview');
+      this.refreshKnownRemoteOverviewCount();
+
+      const id = requestedId || this.remoteOverviewHistoryService.getLastVisited()?.id;
 
       if (id) {
         const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -291,6 +301,8 @@ export class AppComponent implements OnInit {
           this.mapService.loadMapDesignById<TerritoryOverview>(id).subscribe({
             next: overview => {
               this.remoteOverviewName = overview.preacherName;
+              this.remoteOverviewHistoryService.remember(id, overview.preacherName);
+              this.refreshKnownRemoteOverviewCount();
               overview.territoryList.forEach(mapDesign => this.loadTerritoryMap(mapDesign));
               this.zoomToExtendOfAllFeatures();
             },
@@ -741,6 +753,30 @@ export class AppComponent implements OnInit {
 
     const params = new URLSearchParams({id: this.remoteOverviewId});
     window.location.search = params.toString();
+  }
+
+  protected openRemoteOverviewHistory(): void {
+    const dialogRef = this.dialog.open(RemoteOverviewHistoryDialogComponent, {
+      width: '32rem',
+      maxWidth: '90vw'
+    });
+
+    dialogRef.afterClosed().subscribe((entry: RemoteOverviewHistoryEntry | undefined) => {
+      this.refreshKnownRemoteOverviewCount();
+
+      if (entry) {
+        this.navigateToRemoteOverview(entry.id);
+      }
+    });
+  }
+
+  private navigateToRemoteOverview(id: string): void {
+    const params = new URLSearchParams({id: id});
+    window.location.search = params.toString();
+  }
+
+  private refreshKnownRemoteOverviewCount(): void {
+    this.knownRemoteOverviewCount = this.remoteOverviewHistoryService.getEntries().length;
   }
 
   private navigateToRemoteTerritory(feature: Feature): void {

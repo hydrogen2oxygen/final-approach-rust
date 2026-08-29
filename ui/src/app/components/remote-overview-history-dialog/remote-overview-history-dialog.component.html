@@ -1,0 +1,30 @@
+<h2 mat-dialog-title>Known territory overviews</h2>
+
+<mat-dialog-content>
+  @if (entries.length > 0) {
+    <div class="overview-list">
+      @for (entry of entries; track entry.id) {
+        <div class="overview-entry">
+          <button class="overview-link" type="button" (click)="open(entry)">
+            {{ entry.name }}
+          </button>
+          <button
+            mat-icon-button
+            class="remove-overview"
+            type="button"
+            title="Remove overview"
+            aria-label="Remove overview"
+            (click)="remove($event, entry)">
+            <mat-icon>delete</mat-icon>
+          </button>
+        </div>
+      }
+    </div>
+  } @else {
+    <p>No known territory overviews.</p>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>Close</button>
+</mat-dialog-actions>
