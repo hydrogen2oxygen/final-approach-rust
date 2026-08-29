@@ -2065,4 +2065,34 @@ export class AppComponent implements OnInit {
 
     return hashCode.toString();
   }
+
+  protected copyRemoteTerritoryOverviewLink(preacher: Preacher): void {
+    if (!this.congregation?.rootURL || !preacher.name) {
+      this.toastr.error('The remote URL or preacher name is missing.');
+      return;
+    }
+
+    let remoteUrl: URL;
+
+    try {
+      remoteUrl = new URL(this.congregation.rootURL, window.location.origin);
+      remoteUrl.searchParams.set('id', this.createPreacherNameHashCode(preacher.name));
+    } catch (error) {
+      console.error('Error creating remote territory overview URL:', error);
+      this.toastr.error('The configured remote URL is invalid.');
+      return;
+    }
+
+    if (!navigator.clipboard) {
+      this.toastr.error('Clipboard access is not supported by this browser.');
+      return;
+    }
+
+    navigator.clipboard.writeText(remoteUrl.toString()).then(() => {
+      this.toastr.success('Remote territory overview URL copied to clipboard.');
+    }).catch(error => {
+      console.error('Error copying remote territory overview URL:', error);
+      this.toastr.error('The remote territory overview URL could not be copied.');
+    });
+  }
 }

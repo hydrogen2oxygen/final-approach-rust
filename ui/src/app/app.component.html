@@ -324,11 +324,12 @@
     <div style="position: fixed; top: 3rem; left: 3rem; margin: 1rem; background-color: rgba(216,216,216,0.7); border-radius: 0.5rem; padding: 0.75rem;">
 
       <div class="table-scroll-container">
-        <table class="table table-sm tableRegistry table-hover" style="margin-top: 0.75rem;">
+        <table class="table table-sm tableRegistry table-hover" id="preacherDetails" style="margin-top: 0.75rem;">
           <thead>
           <tr>
             <th>ACTIONS</th>
             <th>NAME</th>
+            <th>REMOTE LINK</th>
           </tr>
           </thead>
           <tbody>
@@ -338,6 +339,7 @@
                   <button class="btn-sm btn btn-danger btn-sm2" (click)="deletePreacher(p)" title="delete">DEL</button>
                   <button class="btn-sm btn btn-warning btn-sm2" style="margin-left: 0.2rem" (click)="switchGroup(p)" title="switchGroup">SWITCH</button>
                 <td>{{ p.name }}</td>
+                <td><button class="btn-sm btn btn-primary btn-sm2" (click)="copyRemoteTerritoryOverviewLink(p)" title="copyURL">COPY URL</button></td>
               </tr>
             }
           </tbody>
