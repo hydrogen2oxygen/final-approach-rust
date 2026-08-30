@@ -152,6 +152,11 @@
           PDF 4x
         </button>
       }
+      <button class="icon-button icon-success" title="PRINT ALL TERRITORY QR CODES"
+              (click)="exportTerritoryQrCodesAsPdf()">
+        <mat-icon>qr_code_2</mat-icon>
+        QR
+      </button>
     }
     @case ('PREACHER') {
       @if (knownRemoteOverviewCount > 0) {

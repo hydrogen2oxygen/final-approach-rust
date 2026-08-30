@@ -36,6 +36,7 @@ import {
   TerritoryOverview
 } from './domains/Congregation';
 import {jsPDF} from 'jspdf';
+import * as QRCode from 'qrcode';
 import {buffer} from 'ol/extent';
 import {click, shiftKeyOnly} from 'ol/events/condition';
 import {SettingsComponent} from './components/settings/settings.component';
@@ -1609,6 +1610,143 @@ export class AppComponent implements OnInit, OnDestroy {
       console.error(error);
       this.toastr.error('Failed to create PDF');
     }
+  }
+
+  protected exportTerritoryQrCodesAsPdf(): void {
+    if (!this.congregation?.rootURL) {
+      this.toastr.error('The remote root URL is not configured.');
+      return;
+    }
+
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const territoriesWithRemoteUrl = this.territoriesSorted
+      .filter(territory => territory.uuid && uuidPattern.test(territory.uuid))
+      .sort((first, second) => {
+        const languageGroupComparison = Number(first.foreignLanguageGroup) - Number(second.foreignLanguageGroup);
+
+        if (languageGroupComparison !== 0) {
+          return languageGroupComparison;
+        }
+
+        const numberComparison = first.number.localeCompare(second.number, undefined, {
+          numeric: true,
+          sensitivity: 'base'
+        });
+
+        return numberComparison !== 0
+          ? numberComparison
+          : first.name.localeCompare(second.name, undefined, {sensitivity: 'base'});
+      })
+      .map(territory => {
+        const remoteUrl = new URL(this.congregation!.rootURL, window.location.origin);
+        remoteUrl.searchParams.set('id', territory.uuid!);
+
+        return {
+          name: territory.name,
+          number: territory.number,
+          remoteUrl: remoteUrl.toString()
+        };
+      });
+
+    if (territoriesWithRemoteUrl.length === 0) {
+      this.toastr.warning('No territories with a valid remote UUID are available. Please synchronize first.');
+      return;
+    }
+
+    const missingRemoteTerritoryCount = this.territoriesSorted.length - territoriesWithRemoteUrl.length;
+    const qrCodeDataUrls: Array<string | undefined> = new Array(territoriesWithRemoteUrl.length);
+    let remainingQrCodes = territoriesWithRemoteUrl.length;
+
+    territoriesWithRemoteUrl.forEach((territory, index) => {
+      QRCode.toDataURL(territory.remoteUrl, {
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        },
+        errorCorrectionLevel: 'M',
+        margin: 1,
+        width: 320
+      }, (error, dataUrl) => {
+        if (error) {
+          console.error(`Could not create QR code for territory ${territory.number}:`, error);
+        } else {
+          qrCodeDataUrls[index] = dataUrl;
+        }
+
+        remainingQrCodes--;
+
+        if (remainingQrCodes === 0) {
+          const printableTerritories = territoriesWithRemoteUrl
+            .map((item, itemIndex) => ({...item, qrCodeDataUrl: qrCodeDataUrls[itemIndex]}))
+            .filter((item): item is typeof item & {qrCodeDataUrl: string} => Boolean(item.qrCodeDataUrl));
+
+          if (printableTerritories.length === 0) {
+            this.toastr.error('The QR code PDF could not be created.');
+            return;
+          }
+
+          this.createTerritoryQrCodePdf(printableTerritories);
+
+          if (missingRemoteTerritoryCount > 0) {
+            this.toastr.warning(
+              `${missingRemoteTerritoryCount} territory QR code(s) were omitted because no valid remote UUID exists.`
+            );
+          }
+        }
+      });
+    });
+  }
+
+  private createTerritoryQrCodePdf(
+    territories: Array<{name: string, number: string, qrCodeDataUrl: string}>
+  ): void {
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+    const columns = 6;
+    const rows = 7;
+    const itemsPerPage = columns * rows;
+    const outerMargin = 6;
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const cellWidth = (pageWidth - outerMargin * 2) / columns;
+    const cellHeight = (pageHeight - outerMargin * 2) / rows;
+    const qrCodeSize = 25;
+
+    territories.forEach((territory, index) => {
+      if (index > 0 && index % itemsPerPage === 0) {
+        pdf.addPage('a4', 'portrait');
+      }
+
+      const pageIndex = index % itemsPerPage;
+      const column = pageIndex % columns;
+      const row = Math.floor(pageIndex / columns);
+      const cellX = outerMargin + column * cellWidth;
+      const cellY = outerMargin + row * cellHeight;
+      const qrCodeX = cellX + (cellWidth - qrCodeSize) / 2;
+      const qrCodeY = cellY + 2;
+
+      pdf.setDrawColor(190, 198, 207);
+      pdf.setLineWidth(0.15);
+      pdf.setLineDashPattern([1, 1], 0);
+      pdf.rect(cellX, cellY, cellWidth, cellHeight);
+      pdf.setLineDashPattern([], 0);
+      pdf.addImage(territory.qrCodeDataUrl, 'PNG', qrCodeX, qrCodeY, qrCodeSize, qrCodeSize);
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(7);
+      pdf.setTextColor(37, 54, 74);
+      pdf.text(territory.number, cellX + cellWidth / 2, qrCodeY + qrCodeSize + 3, {align: 'center'});
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(6);
+      const territoryNameLines = pdf.splitTextToSize(territory.name, cellWidth - 3).slice(0, 2);
+      pdf.text(territoryNameLines, cellX + cellWidth / 2, qrCodeY + qrCodeSize + 6, {align: 'center'});
+    });
+
+    pdf.save('territory_qr_codes.pdf');
   }
 
   private clearSelectedFeatures(): void {
