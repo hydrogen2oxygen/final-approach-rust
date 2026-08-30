@@ -538,6 +538,7 @@ export class AppComponent implements OnInit, OnDestroy {
     let strokeWidth = this.map.getView().getZoom() - 12;
     if (strokeWidth < 0) strokeWidth = 0.1
     if (strokeWidth > 6) strokeWidth = 6
+    let darkenColorFactor = 0.9;
 
     if (feature.get('selected')) {
       style = this.createStyle([0, 255, 0, 0.05], [255, 0, 0, 0.5], strokeWidth, '#001010', '#fff', 2);
@@ -552,13 +553,22 @@ export class AppComponent implements OnInit, OnDestroy {
     } else if (feature.get('territoryName') == 'DRAFT') {
       style = this.createStyle([255, 0, 0, 0.05], [155, 0, 0, 0.75], strokeWidth, '#700000', '#fff', 2);
     } else if (feature.get('draft') == false) {
+      const isAssigned = this.isTerritoryAssigned(feature.get('territoryNumber'));
       if (feature.get('foreignLanguageGroup')) {
         let ffc = this.getColor(this.congregation.foreignFillColor)
         let fsc = this.getColor(this.congregation.foreignStrokeColor)
+        if (isAssigned) {
+          ffc = this.darkenColor(ffc, darkenColorFactor);
+          fsc = this.darkenColor(fsc, darkenColorFactor);
+        }
         style = this.createStyle([ffc[0], ffc[1], ffc[2], 0.1], [fsc[0], fsc[1], fsc[2], 0.5], strokeWidth, this.congregation.foreignTextFillColor, this.congregation.foreignTextStrokeColor, 2);
       } else {
         let ffc = this.getColor(this.congregation.defaultFillColor)
         let fsc = this.getColor(this.congregation.defaultStrokeColor)
+        if (isAssigned) {
+          ffc = this.darkenColor(ffc, darkenColorFactor);
+          fsc = this.darkenColor(fsc, darkenColorFactor);
+        }
         style = this.createStyle([ffc[0], ffc[1], ffc[2], 0.1], [fsc[0], fsc[1], fsc[2], 0.5], strokeWidth, this.congregation.defaultTextFillColor, this.congregation.defaultTextStrokeColor, 2);
       }
     }
@@ -573,6 +583,22 @@ export class AppComponent implements OnInit, OnDestroy {
       style.getText().setText('');
     }
     return style;
+  }
+
+  private isTerritoryAssigned(territoryNumber: string): boolean {
+    if (!this.isLocalhost) {
+      return false;
+    }
+
+    const territory = this.territoriesSorted.find(item => item.number === territoryNumber);
+    return territory?.registryEntryList?.some(entry =>
+      !entry.returnDate && entry.preacher.name !== 'CongregationPool'
+    ) ?? false;
+  }
+
+  private darkenColor(color: number[], amount: number): number[] {
+    const brightnessFactor = 1 - amount;
+    return color.map(component => Math.round(component * brightnessFactor));
   }
 
   getColor(hexColor: string): number[] {
@@ -1185,6 +1211,8 @@ export class AppComponent implements OnInit, OnDestroy {
       this.territoriesOlder4Months = this.territoriesOlder4Months.sort((a, b) => (new Date(a.date) > new Date(b.date) ? 1 : -1));
       this.territoriesOlder8Months = this.territoriesOlder8Months.sort((a, b) => (new Date(a.date) > new Date(b.date) ? 1 : -1));
 
+      this.vectorLayer.changed();
+
       setTimeout(() => {
         territories.forEach((t: Territory) => {
           if (t.doNotVisitList && t.doNotVisitList.length > 0) {
@@ -1628,6 +1656,7 @@ export class AppComponent implements OnInit, OnDestroy {
       }
       this.lastSelectedTerritory = territory;
       this.mapService.saveTerritory(territory).subscribe(() => {
+        this.vectorLayer.changed();
       });
     }
   }
@@ -2057,7 +2086,8 @@ export class AppComponent implements OnInit, OnDestroy {
       data: {
         preacherName: preacher.name,
         assignments: this.getAssignedTerritories(preacher),
-        territories: this.territoriesSorted
+        territories: this.territoriesSorted,
+        territoryChanged: () => this.vectorLayer.changed()
       }
     });
 
@@ -2433,5 +2463,46 @@ export class AppComponent implements OnInit, OnDestroy {
         this.selectTerritoryByNumber(territoryNumber);
       }
     });
+  }
+
+  /**
+   * Add a new registry entry of the selected territory with a virtual preacher named "CongregationPool"
+   * @protected
+   */
+  protected backToPool(): void {
+    if (!this.lastSelectedTerritory) {
+      return;
+    }
+
+    const territory = this.lastSelectedTerritory;
+    const openEntry = territory.registryEntryList.find(entry => !entry.returnDate);
+
+    if (openEntry?.preacher.name === 'CongregationPool') {
+      return;
+    }
+
+    if (openEntry) {
+      openEntry.returnDate = new Date();
+    }
+
+    const congregationPool = new Preacher();
+    congregationPool.name = 'CongregationPool';
+
+    const registryEntry = new RegistryEntry();
+    registryEntry.territoryNumber = territory.number;
+    registryEntry.territoryName = territory.name;
+    registryEntry.preacher = congregationPool;
+    registryEntry.returnDate = null;
+
+    territory.registryEntryList.unshift(registryEntry);
+    territory.uuid = crypto.randomUUID();
+    if (territory.registryEntryList.length > 20) {
+      territory.registryEntryList.pop();
+    }
+
+    this.mapService.saveTerritory(territory).subscribe(() => {
+      this.vectorLayer.changed();
+    });
+
   }
 }

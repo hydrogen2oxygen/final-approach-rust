@@ -258,6 +258,7 @@
           <button class="btn btn-success" (click)="assignPreacher()">Assign</button>
           @if (lastSelectedTerritory.registryEntryList.length > 0) {
             <button class="btn btn-primary" (click)="register()">Register</button>
+            <button class="btn btn-warning" (click)="backToPool()">Back to Pool</button>
           }
           <datalist id="datalistOptions">
             @for (p of congregation.preacherList; track p) {

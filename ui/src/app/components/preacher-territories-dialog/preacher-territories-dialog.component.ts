@@ -15,6 +15,7 @@ export interface PreacherTerritoriesDialogData {
   preacherName: string;
   assignments: PreacherTerritoryAssignment[];
   territories: Territory[];
+  territoryChanged: () => void;
 }
 
 @Component({
@@ -68,6 +69,7 @@ export class PreacherTerritoriesDialogComponent {
 
     this.mapService.saveTerritory(territory).subscribe(() => {
       this.data.assignments = this.data.assignments.filter(item => item !== assignment);
+      this.data.territoryChanged();
     });
 
   }
