@@ -42,7 +42,7 @@ mat-dialog-content {
 }
 
 .table-container {
-  overflow: auto;
+  overflow: visible;
   border: 1px solid #E1E6EB;
   border-radius: 8px;
 }
@@ -56,7 +56,7 @@ table {
 th,
 td {
   padding: 10px 12px;
-  border-right: 1px solid #E1E6EB;
+  border-right: 0;
   border-bottom: 1px solid #E1E6EB;
   color: #25364A;
   text-align: left;
@@ -78,7 +78,7 @@ th {
   z-index: 1;
   top: 0;
   background: #F7F9FB;
-  color: #25364A;
+  color: #526273;
   font-size: 0.78rem;
   font-weight: 700;
 }
@@ -91,7 +91,7 @@ th {
 .action-button {
   min-height: 30px;
   padding: 5px 9px;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 5px;
   color: #FFFFFF;
   cursor: pointer;
@@ -99,16 +99,35 @@ th {
 }
 
 .delete-button {
-  background: #E4313B;
+  border-color: #F0B8B8;
+  background: transparent;
+  color: #D64545;
+}
+
+.delete-button:hover {
+  border-color: #E99D9D;
+  background: #FFF1F1;
+  color: #B93434;
 }
 
 .switch-button {
-  background: #F4B400;
-  color: #172536;
+  border-color: #D9B94F;
+  background: #F4D66D;
+  color: #5E4300;
+}
+
+.switch-button:hover {
+  border-color: #C9A62F;
+  background: #EAC64E;
+  color: #483300;
 }
 
 .primary-button {
-  background: #0874E8;
+  background: #1769AA;
+}
+
+.primary-button:hover {
+  background: #14598F;
 }
 
 .preacher-button {

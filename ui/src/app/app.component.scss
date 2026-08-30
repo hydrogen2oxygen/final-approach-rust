@@ -327,8 +327,7 @@
 
 .assignee-controls .btn {
   min-height: 34px;
-  border: 0;
-  color: #FFFFFF;
+  border: 1px solid transparent;
 }
 
 .assign-button {
@@ -336,7 +335,20 @@
 }
 
 .register-button {
-  background: #0874E8;
+  background: #1769AA;
+}
+
+.assignee-controls .btn-warning {
+  border-color: #D9B94F;
+  background: #F4D66D;
+  color: #5E4300;
+}
+
+.assignee-controls .btn-warning:hover,
+.assignee-controls .btn-warning:focus-visible {
+  border-color: #C9A62F;
+  background: #EAC64E;
+  color: #483300;
 }
 
 .tableRegistry {
@@ -353,7 +365,7 @@
 
 .tableRegistry > :not(caption) > * > * {
   padding: 8px;
-  border-right: 1px solid #E1E6EB;
+  border-right: 0;
   border-bottom: 1px solid #E1E6EB;
   background: #FFFFFF;
   color: #25364A;
@@ -370,9 +382,11 @@
 
 .tableRegistry thead th,
 .table-scroll-container thead th {
-  background: #F7F9FB;
-  color: #25364A;
+  background: #F8FAFC;
+  color: #526273;
+  font-size: 0.78rem;
   font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .tableRegistry tbody tr {
@@ -384,13 +398,24 @@
   color: #25364A;
 }
 
+.tableRegistry tbody tr:hover > * {
+  background: #F8FAFC;
+}
+
 .tableRegistry .btn-danger {
   height: 28px;
   padding: 4px 8px;
-  border: 0;
+  border: 1px solid #F0B8B8;
   border-radius: 5px;
-  background: #E52E3D;
-  color: #FFFFFF;
+  background: transparent;
+  color: #D64545;
+}
+
+.tableRegistry .btn-danger:hover,
+.tableRegistry .btn-danger:focus-visible {
+  border-color: #E99D9D;
+  background: #FFF1F1;
+  color: #B93434;
 }
 
 .tableRegistry input[type='date'],
@@ -405,6 +430,24 @@
 
 .table-scroll-container {
   max-height: calc(100vh - 230px);
+}
+
+.registry-panel .table-scroll-container {
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.registry-panel .table-scroll-container::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.registry-panel .table-scroll-container thead th {
+  position: sticky;
+  z-index: 3;
+  top: 0;
 }
 
 @media (max-width: 720px) {
