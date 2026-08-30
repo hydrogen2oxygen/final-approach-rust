@@ -56,6 +56,7 @@ import {
   TerritoryDetailsDialogComponent,
   TerritoryDetailsItem
 } from './components/territory-details-dialog/territory-details-dialog.component';
+import {PreacherDetailsDialogComponent} from './components/preacher-details-dialog/preacher-details-dialog.component';
 
 interface SearchResult {
   label: string;
@@ -125,7 +126,6 @@ export class AppComponent implements OnInit, OnDestroy {
   defaultMapColor: string = '0,100,0';
   foreignMapColor: string = '183,0,255';
   tabTerritory: boolean = true;
-  modalPreacherDetails: boolean = false;
   preacherList: Preacher[] = [];
   remoteOverviewId: string | null = null;
   remoteOverviewName: string | null = null;
@@ -248,7 +248,6 @@ export class AppComponent implements OnInit, OnDestroy {
       } else if (event.key === 'Escape') {
         this.removeInteraction();
         this.modeSelected = '';
-        this.modalPreacherDetails = false;
         this.searchQuery = '';
         this.clearSelectedFeatures();
       } else if (event.ctrlKey && event.key === 's') {
@@ -2041,17 +2040,29 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   protected openPreacherDetails(foreignGroup: boolean) {
-
-    if (!this.modalPreacherDetails) {
-      this.modalPreacherDetails = true
-    }
-
     this.preacherList = []
     this.congregation.preacherList.forEach(p => {
       if ((foreignGroup == false && p.foreignLanguageGroup == undefined) || (p.foreignLanguageGroup == foreignGroup)) {
         this.preacherList.push(p);
       }
     })
+
+    this.dialog.open(PreacherDetailsDialogComponent, {
+      width: '54rem',
+      maxWidth: 'calc(100vw - 24px)',
+      maxHeight: 'calc(100vh - 24px)',
+      data: {
+        title: foreignGroup
+          ? this.congregation.foreignLanguageGroupName
+          : this.congregation.name,
+        preachers: this.preacherList,
+        copyLink: (preacher: Preacher) => this.copyRemoteTerritoryOverviewLink(preacher),
+        deletePreacher: (preacher: Preacher) => this.deletePreacher(preacher),
+        getAssignedTerritoryCount: (preacher: Preacher) => this.getAssignedTerritories(preacher).length,
+        openTerritories: (preacher: Preacher) => this.openPreacherTerritories(preacher),
+        switchGroup: (preacher: Preacher) => this.switchGroup(preacher)
+      }
+    });
   }
 
   protected getAssignedTerritories(preacher: Preacher): PreacherTerritoryAssignment[] {

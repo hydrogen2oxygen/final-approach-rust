@@ -1,23 +1,14 @@
-import {Component, OnInit} from '@angular/core';
-import {MatButton} from "@angular/material/button";
+import {Component} from '@angular/core';
 import {
-  MatDialogActions,
-  MatDialogClose,
   MatDialogContent,
   MatDialogRef,
   MatDialogTitle
-} from "@angular/material/dialog";
+} from '@angular/material/dialog';
 import {Personas} from '../../domains/MapDesign';
 
 @Component({
   selector: 'app-persona',
-    imports: [
-        MatButton,
-        MatDialogActions,
-        MatDialogClose,
-        MatDialogContent,
-        MatDialogTitle
-    ],
+  imports: [MatDialogContent, MatDialogTitle],
   templateUrl: './persona.component.html',
   styleUrl: './persona.component.scss'
 })

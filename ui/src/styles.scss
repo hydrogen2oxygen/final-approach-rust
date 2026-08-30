@@ -87,3 +87,26 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif!important; }
 .btn-sm {
   padding: 0.25rem 0.5rem!important;
 }
+
+.mat-mdc-dialog-title {
+  margin: 0 !important;
+  padding: 12px 18px 8px !important;
+  font-size: 1.2rem !important;
+  line-height: 1.35 !important;
+}
+
+.mat-mdc-dialog-title::before {
+  height: 0 !important;
+}
+
+.mat-mdc-dialog-content {
+  padding: 8px 18px 14px !important;
+}
+
+.mat-mdc-dialog-content > :first-child {
+  margin-top: 0;
+}
+
+.mat-mdc-dialog-content > :last-child {
+  margin-bottom: 0;
+}
