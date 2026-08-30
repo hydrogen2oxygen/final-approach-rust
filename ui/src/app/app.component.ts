@@ -1918,7 +1918,8 @@ export class AppComponent implements OnInit {
       maxWidth: '90vw',
       data: {
         preacherName: preacher.name,
-        assignments: this.getAssignedTerritories(preacher)
+        assignments: this.getAssignedTerritories(preacher),
+        territories: this.territoriesSorted
       }
     });
 
@@ -1992,9 +1993,14 @@ export class AppComponent implements OnInit {
                     const territoryMapByNumber = new globalThis.Map(
                       territoryMaps.map(map => [map.territoryNumber, map])
                     );
-                    const territoriesToUpload = territories.filter(territory =>
-                      !territory.exported || !remoteUuids.has(territory.uuid!.toLowerCase())
-                    );
+                    const territoriesToUpload = territories.filter(territory => {
+                      const isInCongregationPool = territory.registryEntryList?.some(entry =>
+                        !entry.returnDate && entry.preacher.name === 'CongregationPool'
+                      );
+
+                      return !isInCongregationPool &&
+                        (!territory.exported || !remoteUuids.has(territory.uuid!.toLowerCase()));
+                    });
                     const missingMapDesigns = territoriesToUpload.filter(territory =>
                       !territoryMapByNumber.has(territory.number)
                     );
