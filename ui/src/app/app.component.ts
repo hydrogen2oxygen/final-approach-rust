@@ -125,6 +125,8 @@ export class AppComponent implements OnInit, OnDestroy {
   preacherList: Preacher[] = [];
   remoteOverviewId: string | null = null;
   remoteOverviewName: string | null = null;
+  remoteTerritoryUuid: string | null = null;
+  remoteTerritoryMap: TerritoryMap | null = null;
   isRemoteOverview: boolean = false;
   knownRemoteOverviewCount: number = 0;
   searchQuery: string = '';
@@ -307,8 +309,10 @@ export class AppComponent implements OnInit, OnDestroy {
         const preacherNameHashPattern = /^-?\d+$/;
 
         if (uuidPattern.test(id)) {
+          this.remoteTerritoryUuid = id;
           this.mapService.loadMapDesignById<TerritoryMap>(id).subscribe({
             next: mapDesign => {
+              this.remoteTerritoryMap = mapDesign;
               this.loadTerritoryMap(mapDesign);
               this.zoomToExtendOfAllFeatures();
             },
@@ -431,6 +435,30 @@ export class AppComponent implements OnInit, OnDestroy {
 
     this.locationTracking = true;
     this.geolocation.setTracking(true);
+  }
+
+  protected shareCurrentTerritory(): void {
+    if (!this.remoteTerritoryUuid || !this.remoteTerritoryMap) {
+      return;
+    }
+
+    if (!navigator.share) {
+      this.toastr.error('Sharing is not supported by this browser.');
+      return;
+    }
+
+    navigator.share({
+      title: document.title,
+      text: `Territory ${this.remoteTerritoryMap.territoryNumber}: ${this.remoteTerritoryMap.territoryName}`,
+      url: window.location.href
+    }).catch(error => {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
+
+      console.error('Error sharing territory URL:', error);
+      this.toastr.error('The territory link could not be shared.');
+    });
   }
 
   private centerMapOnLocation(position: Coordinate): void {

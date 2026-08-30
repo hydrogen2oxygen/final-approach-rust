@@ -165,9 +165,11 @@
           BACK TO OVERVIEW
         </button>
       }
-      <button class="icon-button icon-primary" title="Share Link">
-        <mat-icon>share</mat-icon>
-      </button>
+      @if (!isLocalhost && remoteTerritoryUuid && remoteTerritoryMap) {
+        <button class="icon-button icon-primary" title="Share territory link" (click)="shareCurrentTerritory()">
+          <mat-icon>share</mat-icon>
+        </button>
+      }
       @if (!isLocalhost) {
         <button class="icon-button icon-primary" [class.activeMode]="locationTracking"
                 [title]="locationTracking ? 'Stop GPS and show territory' : 'Show current GPS location'"
