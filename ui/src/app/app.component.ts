@@ -1,6 +1,7 @@
-import {Component, OnInit} from '@angular/core';
+import {Component, OnDestroy, OnInit} from '@angular/core';
 import Map from 'ol/Map';
 import View from 'ol/View';
+import Geolocation from 'ol/Geolocation';
 import TileLayer from 'ol/layer/Tile';
 import OSM from 'ol/source/OSM';
 import {MatDialog, MatDialogModule} from '@angular/material/dialog';
@@ -13,14 +14,14 @@ import {ToastrService} from 'ngx-toastr';
 import {AppService} from './services/app.service';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
-import {Fill, Stroke, Style, Text} from 'ol/style';
+import {Circle as CircleStyle, Fill, Stroke, Style, Text} from 'ol/style';
 import {FeatureLike} from 'ol/Feature';
 import {FormControl, FormsModule, ReactiveFormsModule} from '@angular/forms';
 import {DragAndDrop, Draw, Modify, Select} from 'ol/interaction';
 import {GeoJSON, GPX, IGC, KML, TopoJSON, WKT} from 'ol/format';
 import {Feature} from 'ol';
 import {TerritoryMap, Personas} from './domains/MapDesign';
-import {Geometry, MultiPolygon, Polygon} from 'ol/geom';
+import {Geometry, MultiPolygon, Point, Polygon} from 'ol/geom';
 import {DocumentationComponent} from './components/documentation/documentation.component';
 import {PersonaComponent} from './components/persona/persona.component';
 import {Coordinate} from 'ol/coordinate';
@@ -67,7 +68,7 @@ interface SearchResult {
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
 
   map: Map | undefined;
   view: View = new View();
@@ -127,6 +128,13 @@ export class AppComponent implements OnInit {
   isRemoteOverview: boolean = false;
   knownRemoteOverviewCount: number = 0;
   searchQuery: string = '';
+  locationTracking: boolean = false;
+
+  private geolocation: Geolocation | undefined;
+  private locationLayer: VectorLayer | undefined;
+  private positionFeature: Feature<Geometry> = new Feature<Geometry>();
+  private accuracyFeature: Feature<Geometry> = new Feature<Geometry>();
+  private locationCentered: boolean = false;
 
   isLocalhost =
     window.location.hostname === 'localhost' ||
@@ -171,6 +179,7 @@ export class AppComponent implements OnInit {
       view: this.view
     });
     this.selectInteraction = new Select({
+      layers: [this.vectorLayer],
       multi: true,
       condition: click,
       toggleCondition: shiftKeyOnly,
@@ -340,6 +349,96 @@ export class AppComponent implements OnInit {
       this.loadMapDesign()
       this.reloadCongregationData();
     }
+  }
+
+  ngOnDestroy(): void {
+    this.geolocation?.setTracking(false);
+  }
+
+  protected showCurrentLocation(): void {
+    if (this.locationTracking) {
+      this.geolocation?.setTracking(false);
+      this.locationTracking = false;
+      this.locationCentered = false;
+      this.positionFeature.setGeometry(undefined);
+      this.accuracyFeature.setGeometry(undefined);
+      this.zoomToExtendOfAllFeatures();
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      this.toastr.error('GPS location is not supported by this browser.');
+      return;
+    }
+
+    const currentPosition = this.geolocation?.getPosition();
+    if (currentPosition) {
+      this.centerMapOnLocation(currentPosition);
+      return;
+    }
+
+    if (!this.map) {
+      return;
+    }
+
+    if (this.geolocation) {
+      this.locationTracking = true;
+      this.geolocation.setTracking(true);
+      return;
+    }
+
+    this.positionFeature.setStyle(new Style({
+      image: new CircleStyle({
+        radius: 7,
+        fill: new Fill({color: '#1976d2'}),
+        stroke: new Stroke({color: '#ffffff', width: 3})
+      })
+    }));
+    this.accuracyFeature.setStyle(new Style({
+      fill: new Fill({color: 'rgba(25, 118, 210, 0.15)'}),
+      stroke: new Stroke({color: 'rgba(25, 118, 210, 0.65)', width: 2})
+    }));
+
+    this.locationLayer = new VectorLayer({
+      source: new VectorSource({
+        features: [this.accuracyFeature, this.positionFeature]
+      })
+    });
+    this.locationLayer.setZIndex(1000);
+    this.map.addLayer(this.locationLayer);
+
+    this.geolocation = new Geolocation({
+      projection: this.view.getProjection(),
+      trackingOptions: {
+        enableHighAccuracy: true
+      }
+    });
+    this.geolocation.on('change:accuracyGeometry', () => {
+      this.accuracyFeature.setGeometry(this.geolocation?.getAccuracyGeometry());
+    });
+    this.geolocation.on('change:position', () => {
+      const position = this.geolocation?.getPosition();
+      this.positionFeature.setGeometry(position ? new Point(position) : undefined);
+
+      if (position && !this.locationCentered) {
+        this.centerMapOnLocation(position);
+      }
+    });
+    this.geolocation.on('error', error => {
+      this.locationTracking = false;
+      this.toastr.error(`GPS location could not be determined: ${error.message}`);
+    });
+
+    this.locationTracking = true;
+    this.geolocation.setTracking(true);
+  }
+
+  private centerMapOnLocation(position: Coordinate): void {
+    this.view.setCenter(position);
+    if ((this.view.getZoom() ?? 0) < 17) {
+      this.view.setZoom(17);
+    }
+    this.locationCentered = true;
   }
 
   public createStyle(fillColor: any = [0, 0, 0, 0.1], strokeColor: any = [255, 0, 0, 0.5], strokeWidth: number = 5, textFillColor: string = '#000', textStrokeColor: string = '#fff', textStrokeWidth: number = 3): Style {
@@ -1904,10 +2003,17 @@ export class AppComponent implements OnInit {
         return [];
       }
 
+      const activeAssignmentIndex = territory.registryEntryList.indexOf(activeAssignment);
+      const originalAssignment = activeAssignment.registration
+        ? territory.registryEntryList
+          .slice(activeAssignmentIndex + 1)
+          .find(entry => !entry.registration && entry.preacher.name === preacher.name)
+        : activeAssignment;
+
       return [{
         territoryNumber: territory.number,
         territoryName: territory.name,
-        assignedAt: activeAssignment.assignDate
+        assignedAt: originalAssignment?.assignDate ?? activeAssignment.assignDate
       }];
     });
   }
