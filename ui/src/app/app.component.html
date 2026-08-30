@@ -208,7 +208,7 @@
 </div>
 
 @if (lastSelectedFeature && persona == 'DESIGNER') {
-  <div style="position: fixed; bottom: 1rem; left: 1rem; margin: 1rem; {{getForeignStyleColour()}} border-radius: 0.5rem; padding: 0.75rem;">
+  <div class="territory-editor-panel">
     <div class="input-group input-group-sm mb-0 align-items-center">
       <input class="form-control" [class.territoryNumberExist]="territoryNumberExist" [class.territoryNumberNotExist]="!territoryNumberExist" type="text" list="territoryNumbers" placeholder="number" (keyup)="checkIfTerritoryNumberExist()" [formControl]="territoryCustomNumber">
       <datalist id="territoryNumbers">
@@ -225,15 +225,14 @@
       </datalist>
 
       @if (congregation && congregation.includeForeignLanguageGroup) {
-        <label class="form-check-label" for="includeForeignLanguageGroup"
-               style="margin-left: 1rem; margin-right: 0.5rem; color: white">
+        <label class="form-check-label territory-language-label" for="includeForeignLanguageGroup">
           <b>Foreign Language Territory?</b>
         </label>
         <input class="form-check-input" type="checkbox" value="" id="includeForeignLanguageGroup"
-               [formControl]="addAsForeignLanguageTerritory" style="margin-right: 1rem">
+               [formControl]="addAsForeignLanguageTerritory">
       }
 
-      <button style="margin-left: 0.2rem" class="btn btn-primary" (click)="saveMapForTerritory()">Save Map for
+      <button class="btn btn-primary territory-save-button" (click)="saveMapForTerritory()">Save Map for
         Territory
       </button>
     </div>

@@ -18,6 +18,65 @@
   font-weight: bolder;
 }
 
+.territory-editor-panel {
+  position: fixed;
+  z-index: 15;
+  bottom: 18px;
+  left: 18px;
+  max-width: calc(100vw - 36px);
+  padding: 10px;
+  border: 3px solid #08294A;
+  border-radius: 9px;
+  background: #FFFFFF;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  color: #25364A;
+}
+
+.territory-editor-panel .input-group {
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+
+.territory-editor-panel .form-control {
+  min-width: 10rem;
+  border: 1px solid #CFD8E3;
+  border-radius: 6px !important;
+  color: #25364A;
+  box-shadow: none;
+}
+
+.territory-editor-panel .territoryNumberExist {
+  border-color: #E99D9D;
+  background: #FFF1F1;
+  color: #B93434;
+}
+
+.territory-editor-panel .territoryNumberNotExist {
+  border-color: #A9D8BE;
+  background: #EDF8F2;
+  color: #126F3C;
+}
+
+.territory-language-label {
+  align-self: center;
+  margin: 0 2px 0 8px;
+  color: #25364A;
+  white-space: nowrap;
+}
+
+.territory-editor-panel .form-check-input {
+  align-self: center;
+  width: 20px;
+  height: 20px;
+  margin: 0 8px 0 0;
+  border-color: #AEBBC8;
+}
+
+.territory-save-button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .btn-sm2 {
   font-size: 12px;
   line-height: 16px;
@@ -451,6 +510,25 @@
 }
 
 @media (max-width: 720px) {
+  .territory-editor-panel {
+    right: 10px;
+    bottom: 10px;
+    left: 10px;
+    max-width: none;
+  }
+
+  .territory-editor-panel .input-group {
+    flex-wrap: wrap;
+  }
+
+  .territory-editor-panel .form-control {
+    min-width: calc(50% - 3px);
+  }
+
+  .territory-save-button {
+    flex: 1 1 auto;
+  }
+
   .top-navbar {
     right: 12px;
     width: auto;
