@@ -136,6 +136,7 @@ export class AppComponent implements OnInit, OnDestroy {
   knownRemoteOverviewCount: number = 0;
   searchQuery: string = '';
   locationTracking: boolean = false;
+  isAllTerritoriesOverview: boolean = false;
 
   private geolocation: Geolocation | undefined;
   private locationLayer: VectorLayer | undefined;
@@ -306,13 +307,28 @@ export class AppComponent implements OnInit, OnDestroy {
       this.remoteOverviewId = urlParams.get('overview');
       this.refreshKnownRemoteOverviewCount();
 
-      const id = requestedId || this.remoteOverviewHistoryService.getLastVisited()?.id;
+      const id = requestedId || 'overview';
 
       if (id) {
         const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
         const preacherNameHashPattern = /^-?\d+$/;
 
-        if (uuidPattern.test(id)) {
+        if (id === 'overview') {
+          this.isRemoteOverview = true;
+          this.isAllTerritoriesOverview = true;
+
+          this.mapService.loadMapDesignById<TerritoryOverview>('overview').subscribe({
+            next: overview => {
+              this.remoteOverviewName = overview.preacherName || 'All territories';
+              overview.territoryList.forEach(mapDesign => this.loadTerritoryMap(mapDesign));
+              this.zoomToExtendOfAllFeatures();
+            },
+            error: error => {
+              console.error('Error loading all-territories overview:', error);
+              this.toastr.error('The all-territories overview could not be loaded.');
+            }
+          });
+        } else if (uuidPattern.test(id)) {
           this.remoteTerritoryUuid = id;
           this.mapService.loadMapDesignById<TerritoryMap>(id).subscribe({
             next: mapDesign => {
@@ -959,10 +975,12 @@ export class AppComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const params = new URLSearchParams({
-      id: territoryUuid,
-      overview: this.remoteOverviewId!
-    });
+    const params = new URLSearchParams({id: territoryUuid});
+
+    if (this.remoteOverviewId && !this.isAllTerritoriesOverview) {
+      params.set('overview', this.remoteOverviewId);
+    }
+
     window.location.search = params.toString();
   }
 
@@ -1610,6 +1628,28 @@ export class AppComponent implements OnInit, OnDestroy {
       console.error(error);
       this.toastr.error('Failed to create PDF');
     }
+  }
+
+  protected toggleAllTerritoriesOverview(): void {
+    const previousRemoteLocationKey = 'previousRemoteLocationBeforeAllTerritories';
+
+    if (this.isAllTerritoriesOverview) {
+      const previousRemoteLocation = sessionStorage.getItem(previousRemoteLocationKey);
+
+      if (!previousRemoteLocation) {
+        this.toastr.info('No previous remote overview or territory is available.');
+        return;
+      }
+
+      window.location.assign(previousRemoteLocation);
+      return;
+    }
+
+    sessionStorage.setItem(previousRemoteLocationKey, window.location.href);
+    const rootUrl = new URL(window.location.href);
+    rootUrl.search = '';
+    rootUrl.hash = '';
+    window.location.assign(rootUrl.toString());
   }
 
   protected exportTerritoryQrCodesAsPdf(): void {

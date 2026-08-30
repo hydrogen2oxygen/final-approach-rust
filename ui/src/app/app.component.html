@@ -10,6 +10,12 @@
       <mat-icon>settings</mat-icon>
     </button>
   }
+  @if (!isLocalhost) {
+    <button class="icon-button icon-primary" (click)="toggleAllTerritoriesOverview()"
+            [title]="isAllTerritoriesOverview ? 'Back to previous overview or territory' : 'Show all territories'">
+      <mat-icon>{{ isAllTerritoriesOverview ? 'undo' : 'layers' }}</mat-icon>
+    </button>
+  }
   <button class="icon-button icon-primary" (click)="toggleFullscreen()">
     <mat-icon>fullscreen</mat-icon>
   </button>

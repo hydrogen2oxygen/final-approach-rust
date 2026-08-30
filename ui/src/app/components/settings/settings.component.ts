@@ -1,13 +1,14 @@
 import {Component, OnInit} from '@angular/core';
-import {Personas} from '../../domains/MapDesign';
+import {Personas, TerritoryMap} from '../../domains/MapDesign';
 import {MapService} from '../../services/map.service';
-import {Congregation} from '../../domains/Congregation';
+import {Congregation, TerritoryOverview} from '../../domains/Congregation';
 import {MatDialogContent, MatDialogModule, MatDialogRef} from '@angular/material/dialog';
 import {MatButtonModule} from '@angular/material/button';
 import {MatIconModule} from '@angular/material/icon';
 import {FormControl, ReactiveFormsModule} from '@angular/forms';
 import {ToastrService} from 'ngx-toastr';
 import {ApiService} from '../../services/api.service';
+import {forkJoin} from 'rxjs';
 
 @Component({
   selector: 'app-settings',
@@ -157,5 +158,71 @@ export class SettingsComponent implements OnInit {
     this.apiService.uploadUI().subscribe(() => {
       this.toastr.success('UI files uploaded', 'Settings')
     })
+  }
+
+  protected uploadAllTerritoriesOverview(): void {
+    this.congregation.apiUUID = this.apiUUID.value;
+    this.congregation.apiSECRET = this.apiSECRET.value;
+    this.congregation.rootURL = this.rootURL.value;
+    this.apiService.setCongregation(this.congregation);
+
+    forkJoin({
+      mapDesigns: this.mapService.loadMapDesign(),
+      territories: this.mapService.loadTerritories()
+    }).subscribe({
+      next: result => {
+        const overview = new TerritoryOverview();
+        overview.preacherName = `${this.congregation.name} territories`;
+        overview.updatedAt = new Date();
+        overview.territoryList = result.mapDesigns
+          .map((mapDesign: TerritoryMap) => {
+            const territory = result.territories.find(item => item.number === mapDesign.territoryNumber);
+
+            return {
+              ...mapDesign,
+              url: territory?.uuid ?? ''
+            };
+          })
+          .sort((first, second) => {
+            const languageGroupComparison = Number(first.foreignLanguageGroup) - Number(second.foreignLanguageGroup);
+
+            if (languageGroupComparison !== 0) {
+              return languageGroupComparison;
+            }
+
+            const numberComparison = first.territoryNumber.localeCompare(second.territoryNumber, undefined, {
+              numeric: true,
+              sensitivity: 'base'
+            });
+
+            return numberComparison !== 0
+              ? numberComparison
+              : first.territoryName.localeCompare(second.territoryName, undefined, {sensitivity: 'base'});
+          });
+
+        const missingUuidCount = overview.territoryList.filter(mapDesign => !mapDesign.url).length;
+
+        this.apiService.uploadJson('overview', overview).subscribe({
+          next: () => {
+            this.toastr.success('All-territories overview uploaded', 'Settings');
+
+            if (missingUuidCount > 0) {
+              this.toastr.warning(
+                `${missingUuidCount} territory link(s) have no remote UUID. Synchronize and upload again.`,
+                'Settings'
+              );
+            }
+          },
+          error: error => {
+            console.error('Error uploading all-territories overview:', error);
+            this.toastr.error('All-territories overview could not be uploaded', 'Settings');
+          }
+        });
+      },
+      error: error => {
+        console.error('Error loading data for all-territories overview:', error);
+        this.toastr.error('Local territories could not be loaded', 'Settings');
+      }
+    });
   }
 }
