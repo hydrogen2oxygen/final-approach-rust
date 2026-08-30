@@ -1,0 +1,33 @@
+<h2 mat-dialog-title>{{ data.title }}</h2>
+
+<mat-dialog-content>
+  @if (data.territories.length > 0) {
+    <table class="table table-sm table-hover">
+      <thead>
+      <tr>
+        <th>NUMBER</th>
+        <th>TERRITORY</th>
+        <th>LAST ASSIGNED</th>
+        <th>LAST ASSIGNEE</th>
+      </tr>
+      </thead>
+      <tbody>
+        @for (territory of data.territories; track territory.territoryNumber) {
+          <tr role="button" tabindex="0" (click)="selectTerritory(territory)"
+              (keydown.enter)="selectTerritory(territory)">
+            <td>{{ territory.territoryNumber }}</td>
+            <td>{{ territory.territoryName }}</td>
+            <td>{{ territory.lastAssignedAt ? (territory.lastAssignedAt | date:'mediumDate') : 'Never' }}</td>
+            <td>{{ territory.lastPreacherName || '-' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  } @else {
+    <p>No territories are available.</p>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>Close</button>
+</mat-dialog-actions>

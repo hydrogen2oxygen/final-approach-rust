@@ -21,11 +21,17 @@
   @if (congregation && congregation.name) {
     <button style="background-color: rgba(0,128,255,0.66)!important;" class="icon-button icon-success" (click)="openPreacherDetails(false)" title="Congregation">
       <mat-icon>home_filled</mat-icon>{{ congregation.name }} </button>
+
+    <button style="background-color: rgba(0,128,255,0.66)!important;" class="icon-button icon-success" (click)="openTerritoryDetails(false)" title="Show territories">
+      <mat-icon>history</mat-icon></button>
   }
 
   @if (congregation && congregation.includeForeignLanguageGroup) {
     <button style="background-color: rgba(183 0 255 / 0.66)!important;" class="icon-button icon-success" (click)="openPreacherDetails(true)">
       <mat-icon>group</mat-icon> {{ congregation.foreignLanguageGroupName }}</button>
+
+    <button style="background-color: rgba(183 0 255 / 0.66)!important;" class="icon-button icon-success" (click)="openTerritoryDetails(true)" title="Show foreign territories">
+      <mat-icon>history</mat-icon></button>
   }
 
   @if (congregation && isLocalhost && persona !== 'PREACHER') {

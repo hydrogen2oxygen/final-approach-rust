@@ -52,6 +52,10 @@ import {
   PreacherTerritoriesDialogComponent,
   PreacherTerritoryAssignment
 } from './components/preacher-territories-dialog/preacher-territories-dialog.component';
+import {
+  TerritoryDetailsDialogComponent,
+  TerritoryDetailsItem
+} from './components/territory-details-dialog/territory-details-dialog.component';
 
 interface SearchResult {
   label: string;
@@ -2375,5 +2379,59 @@ export class AppComponent implements OnInit, OnDestroy {
     });
 
     return true;
+  }
+
+  /**
+   * Shows a dialog to select a territory from the list of territories sorted by its last registry entry date (except registered = true)
+   * @param foreignGroup
+   * @protected
+   */
+  protected openTerritoryDetails(foreignGroup: boolean): void {
+    const territories = this.territoriesSorted
+      .filter(territory => Boolean(territory.foreignLanguageGroup) === foreignGroup)
+      .map(territory => {
+        const lastRegistryEntry = territory.registryEntryList
+          ?.filter(entry => !entry.registration)
+          .sort((first, second) =>
+            new Date(second.assignDate).getTime() - new Date(first.assignDate).getTime()
+          )[0];
+
+        return {
+          territoryNumber: territory.number,
+          territoryName: territory.name,
+          lastAssignedAt: lastRegistryEntry ? new Date(lastRegistryEntry.assignDate) : null,
+          lastPreacherName: lastRegistryEntry?.preacher.name ?? null
+        } satisfies TerritoryDetailsItem;
+      })
+      .sort((first, second) => {
+        if (!first.lastAssignedAt && !second.lastAssignedAt) {
+          return first.territoryNumber.localeCompare(second.territoryNumber, undefined, {numeric: true});
+        }
+        if (!first.lastAssignedAt) {
+          return -1;
+        }
+        if (!second.lastAssignedAt) {
+          return 1;
+        }
+
+        return first.lastAssignedAt.getTime() - second.lastAssignedAt.getTime();
+      });
+
+    const dialogRef = this.dialog.open(TerritoryDetailsDialogComponent, {
+      width: '48rem',
+      maxWidth: '90vw',
+      data: {
+        title: foreignGroup
+          ? `${this.congregation?.foreignLanguageGroupName || 'Foreign language group'} territories`
+          : `${this.congregation?.name || 'Congregation'} territories`,
+        territories
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((territoryNumber: string | undefined) => {
+      if (territoryNumber) {
+        this.selectTerritoryByNumber(territoryNumber);
+      }
+    });
   }
 }
