@@ -1,6 +1,5 @@
 <div class="map-container" id="map"></div>
-<div class="sidebar"
-     style="position: fixed; left: 1rem; top: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+<div class="sidebar map-controls">
 
   @if (persona == 'DESIGNER') {
     <button class="icon-button icon-primary" (click)="openDialog()" title="Info">
@@ -16,21 +15,21 @@
   </button>
 </div>
 
-<div style="position: fixed; left: 4rem; top: 1rem; display: flex; flex-direction: row; gap: 0.5rem;">
+<div class="top-navbar">
 
   @if (congregation && congregation.name) {
-    <button style="background-color: rgba(0,128,255,0.66)!important;" class="icon-button icon-success" (click)="openPreacherDetails(false)" title="Congregation">
+    <button class="icon-button location-control" (click)="openPreacherDetails(false)" title="Congregation">
       <mat-icon>home_filled</mat-icon>{{ congregation.name }} </button>
 
-    <button style="background-color: rgba(0,128,255,0.66)!important;" class="icon-button icon-success" (click)="openTerritoryDetails(false)" title="Show territories">
+    <button class="icon-button location-control" (click)="openTerritoryDetails(false)" title="Show territories">
       <mat-icon>history</mat-icon></button>
   }
 
   @if (congregation && congregation.includeForeignLanguageGroup) {
-    <button style="background-color: rgba(183 0 255 / 0.66)!important;" class="icon-button icon-success" (click)="openPreacherDetails(true)">
+    <button class="icon-button language-control" (click)="openPreacherDetails(true)">
       <mat-icon>group</mat-icon> {{ congregation.foreignLanguageGroupName }}</button>
 
-    <button style="background-color: rgba(183 0 255 / 0.66)!important;" class="icon-button icon-success" (click)="openTerritoryDetails(true)" title="Show foreign territories">
+    <button class="icon-button language-control" (click)="openTerritoryDetails(true)" title="Show foreign territories">
       <mat-icon>history</mat-icon></button>
   }
 
@@ -89,7 +88,7 @@
         <mat-icon>polyline</mat-icon>
         <b>D</b>
       </button>
-      <button class="icon-button icon-warning" [class.activeMode]="interactionType == 'EDIT'" (click)="editFeature()"
+      <button class="icon-button icon-warning" style="color: black" [class.activeMode]="interactionType == 'EDIT'" (click)="editFeature()"
               title="Edit Polygon (CTRL + E)">
         <mat-icon>edit</mat-icon>
         <b>E</b>
@@ -139,7 +138,7 @@
 
     }
     @case ('MANAGER') {
-      <button class="icon-button icon-primary" title="MANAGER" (click)="openPersonaDialog()">
+      <button class="icon-button manager-control" title="MANAGER" (click)="openPersonaDialog()">
         <mat-icon>manage_accounts</mat-icon>
         <span>MANAGER</span></button>
       @if (lastSelectedFeature) {
@@ -172,7 +171,7 @@
         </button>
       }
       @if (!isLocalhost && remoteTerritoryUuid && remoteTerritoryMap) {
-        <button class="icon-button icon-primary" title="Share territory link" (click)="shareCurrentTerritory()">
+        <button class="icon-button icon-primary share-control" title="Share territory link" (click)="shareCurrentTerritory()">
           <mat-icon>share</mat-icon>
         </button>
       }
@@ -237,27 +236,28 @@
 }
 
 @if (lastSelectedFeature && persona == 'MANAGER') {
-  <div style="position: fixed; top: 2rem; right: 1rem; margin: 1rem; background-color: rgb({{getRGBfillByType()}} / 0.7); border-radius: 0.5rem; padding: 0.75rem;">
-    <div class="container text-center">
-      <ul class="nav nav-pills">
+  <div class="registry-panel">
+    <div class="registry-panel-content">
+      <ul class="nav nav-pills registry-header">
         <li class="nav-item">
-          <b style="padding: 0.3rem"><b style="color:white; text-shadow: 1px 1px 2px black">{{ lastSelectedTerritory.number }} - {{ lastSelectedTerritory.name }}</b></b>
+          <b class="registry-title">{{ lastSelectedTerritory.number }} - {{ lastSelectedTerritory.name }}</b>
         </li>
         <li class="nav-item">
-          <b class="btn btn-primary btn-sm2" style="margin-left: 0.5rem; padding: 0.3rem" [class.active]="tabTerritory" (click)="tabTerritory = true">REGISTRY</b>
+          <b class="btn btn-sm2 registry-badge" [class.active]="tabTerritory" (click)="tabTerritory = true">REGISTRY</b>
         </li>
         <li class="nav-item">
-          <b class="btn btn-danger btn-sm2" style="margin-left: 0.5rem; padding: 0.3rem" [class.active]="!tabTerritory" (click)="tabTerritory = false">DO NOT VISIT ENTRIES
-          @if (lastSelectedTerritory.doNotVisitList && lastSelectedTerritory.doNotVisitList.length > 0) {(!)}</b>
+          <b class="btn btn-sm2 do-not-visit-badge" [class.active]="!tabTerritory" (click)="tabTerritory = false">DO NOT VISIT ENTRIES
+          @if (lastSelectedTerritory.doNotVisitList && lastSelectedTerritory.doNotVisitList.length > 0) {({{ lastSelectedTerritory.doNotVisitList.length }})}</b>
         </li>
       </ul>
+      <div class="registry-body">
       @if (tabTerritory) {
-        <div class="input-group input-group-sm mb-0 align-items-center">
+        <div class="input-group input-group-sm mb-0 align-items-center assignee-controls">
           <input class="form-control" list="datalistOptions" placeholder="Type to search the assignee ..."
                  [formControl]="preacherName">
-          <button class="btn btn-success" (click)="assignPreacher()">Assign</button>
+          <button class="btn btn-success assign-button" (click)="assignPreacher()">Assign</button>
           @if (lastSelectedTerritory.registryEntryList.length > 0) {
-            <button class="btn btn-primary" (click)="register()">Register</button>
+            <button class="btn btn-primary register-button" (click)="register()">Register</button>
             <button class="btn btn-warning" (click)="backToPool()">Back to Pool</button>
           }
           <datalist id="datalistOptions">
@@ -367,6 +367,7 @@
           </table>
         </div>
       }
+      </div>
     </div>
   </div>
 }
