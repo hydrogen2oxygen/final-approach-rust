@@ -11,6 +11,12 @@
     </button>
   }
   @if (!isLocalhost) {
+    @if (remoteTerritoryMap?.hasDoNotVisitEntries) {
+      <button class="icon-button warning-map-control" (click)="openDoNotVisitWarning()"
+              title="This territory has do not visit notes">
+        <mat-icon>warning_amber</mat-icon>
+      </button>
+    }
     <button class="icon-button icon-primary" (click)="toggleAllTerritoriesOverview()"
             [title]="isAllTerritoriesOverview ? 'Back to previous overview or territory' : 'Show all territories'">
       <mat-icon>{{ isAllTerritoriesOverview ? 'undo' : 'layers' }}</mat-icon>
@@ -259,6 +265,22 @@
           <b class="btn btn-sm2 do-not-visit-badge" [class.active]="!tabTerritory" (click)="tabTerritory = false">DO NOT VISIT ENTRIES
           @if (lastSelectedTerritory.doNotVisitList && lastSelectedTerritory.doNotVisitList.length > 0) {({{ lastSelectedTerritory.doNotVisitList.length }})}</b>
         </li>
+        @if (lastSelectedTerritory.foreignLanguageGroup) {
+          <li class="foreign-coverage-controls" aria-label="Foreign-language coverage">
+            <button class="foreign-coverage-button coverage-100" type="button"
+                    [class.active]="lastSelectedTerritory.foreignLanguageCoverage === 100"
+                    (click)="setForeignLanguageCoverage(100)" title="100%">100%</button>
+            <button class="foreign-coverage-button coverage-50" type="button"
+                    [class.active]="lastSelectedTerritory.foreignLanguageCoverage === 50"
+                    (click)="setForeignLanguageCoverage(50)" title="50%">50%</button>
+            <button class="foreign-coverage-button coverage-25" type="button"
+                    [class.active]="lastSelectedTerritory.foreignLanguageCoverage === 25"
+                    (click)="setForeignLanguageCoverage(25)" title="25%">25%</button>
+            <button class="foreign-coverage-button coverage-0" type="button"
+                    [class.active]="lastSelectedTerritory.foreignLanguageCoverage === 0"
+                    (click)="setForeignLanguageCoverage(0)" title="0%">0%</button>
+          </li>
+        }
       </ul>
       <div class="registry-body">
       @if (tabTerritory) {

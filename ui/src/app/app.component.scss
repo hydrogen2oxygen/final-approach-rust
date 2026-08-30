@@ -309,6 +309,17 @@
   color: #FFFFFF;
 }
 
+.map-controls .warning-map-control {
+  border: 2px solid #D64545 !important;
+  background: #FFF1F1;
+  color: #D64545;
+}
+
+.map-controls .warning-map-control:hover {
+  background: #D64545;
+  color: #FFFFFF;
+}
+
 .registry-panel {
   position: fixed;
   z-index: 15;
@@ -366,6 +377,47 @@
 .do-not-visit-badge:hover,
 .do-not-visit-badge.active {
   background: #E4313B;
+  color: #FFFFFF;
+}
+
+.foreign-coverage-controls {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.foreign-coverage-button {
+  min-width: 36px;
+  height: 28px;
+  padding: 0 6px;
+  border: 2px solid transparent;
+  border-radius: 5px;
+  color: #172536;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.foreign-coverage-button.active {
+  border-color: #FFFFFF;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.coverage-100 {
+  background: #168447;
+  color: #FFFFFF;
+}
+
+.coverage-50 {
+  background: #A8B820;
+}
+
+.coverage-25 {
+  background: #E0A800;
+}
+
+.coverage-0 {
+  background: #D64545;
   color: #FFFFFF;
 }
 
@@ -564,12 +616,16 @@
   }
 
   .registry-header {
-    align-items: flex-start;
+    align-items: center;
     flex-wrap: wrap;
   }
 
+  .registry-header:has(.foreign-coverage-controls) {
+    flex-wrap: nowrap;
+  }
+
   .registry-title {
-    width: 100%;
+    width: auto;
   }
 
   .registry-body {

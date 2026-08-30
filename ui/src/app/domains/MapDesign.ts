@@ -1,5 +1,7 @@
 import {ResidentialUnit} from "./ResidentialUnit";
 
+export type ForeignLanguageCoverage = 0 | 25 | 50 | 100 | null;
+
 export class OsmStreet {
   coordinates:any[] = [];
   houseNumbers:string[] = [];
@@ -20,6 +22,8 @@ export class TerritoryMap {
   residentialUnits:ResidentialUnit[] = [];
   url:string='';
   foreignLanguageGroup:boolean=false;
+  foreignLanguageCoverage:ForeignLanguageCoverage=null;
+  hasDoNotVisitEntries:boolean=false;
   businessSector:boolean=false;
   industrySector:boolean=false;
 }

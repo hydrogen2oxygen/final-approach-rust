@@ -13,7 +13,12 @@
       </thead>
       <tbody>
         @for (territory of data.territories; track territory.territoryNumber) {
-          <tr role="button" tabindex="0" (click)="selectTerritory(territory)"
+          <tr role="button" tabindex="0"
+              [class.foreign-coverage-100]="territory.foreignLanguageCoverage === 100"
+              [class.foreign-coverage-50]="territory.foreignLanguageCoverage === 50"
+              [class.foreign-coverage-25]="territory.foreignLanguageCoverage === 25"
+              [class.foreign-coverage-0]="territory.foreignLanguageCoverage === 0"
+              (click)="selectTerritory(territory)"
               (keydown.enter)="selectTerritory(territory)">
             <td>{{ territory.territoryNumber }}</td>
             <td>{{ territory.territoryName }}</td>

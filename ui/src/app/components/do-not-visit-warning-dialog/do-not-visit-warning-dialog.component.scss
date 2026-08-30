@@ -1,0 +1,44 @@
+.warning-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+  gap: 16px;
+  padding: 8px 14px;
+  background: #D64545;
+  color: #FFFFFF;
+}
+
+.warning-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.warning-header button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 6px;
+  background: transparent;
+  color: #FFFFFF;
+  cursor: pointer;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+mat-dialog-content {
+  padding: 16px 18px !important;
+}
+
+p {
+  margin: 0;
+  color: #25364A;
+  line-height: 1.5;
+}

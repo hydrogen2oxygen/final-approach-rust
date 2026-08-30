@@ -20,7 +20,7 @@ import {FormControl, FormsModule, ReactiveFormsModule} from '@angular/forms';
 import {DragAndDrop, Draw, Modify, Select} from 'ol/interaction';
 import {GeoJSON, GPX, IGC, KML, TopoJSON, WKT} from 'ol/format';
 import {Feature} from 'ol';
-import {TerritoryMap, Personas} from './domains/MapDesign';
+import {ForeignLanguageCoverage, TerritoryMap, Personas} from './domains/MapDesign';
 import {Geometry, MultiPolygon, Point, Polygon} from 'ol/geom';
 import {DocumentationComponent} from './components/documentation/documentation.component';
 import {PersonaComponent} from './components/persona/persona.component';
@@ -58,6 +58,7 @@ import {
   TerritoryDetailsItem
 } from './components/territory-details-dialog/territory-details-dialog.component';
 import {PreacherDetailsDialogComponent} from './components/preacher-details-dialog/preacher-details-dialog.component';
+import {DoNotVisitWarningDialogComponent} from './components/do-not-visit-warning-dialog/do-not-visit-warning-dialog.component';
 
 interface SearchResult {
   label: string;
@@ -557,7 +558,18 @@ export class AppComponent implements OnInit, OnDestroy {
     let darkenColorFactor = 0.9;
 
     if (feature.get('selected')) {
-      style = this.createStyle([0, 255, 0, 0.05], [255, 0, 0, 0.5], strokeWidth, '#001010', '#fff', 2);
+      const coverageColor = feature.get('foreignLanguageGroup')
+        ? this.getForeignLanguageCoverageColor(this.getForeignLanguageCoverage(feature))
+        : null;
+      const selectedStrokeColor = coverageColor ? this.getColor(coverageColor) : [255, 0, 0];
+      style = this.createStyle(
+        [0, 255, 0, 0.05],
+        [selectedStrokeColor[0], selectedStrokeColor[1], selectedStrokeColor[2], 0.9],
+        strokeWidth,
+        '#001010',
+        '#fff',
+        2
+      );
     } else if (!this.showOsmData && feature.get('residentialUnit')) {
       style = new Style({});
     } else if (this.showOsmData && feature.get('residentialUnit')) {
@@ -572,12 +584,15 @@ export class AppComponent implements OnInit, OnDestroy {
       const isAssigned = this.isTerritoryAssigned(feature.get('territoryNumber'));
       if (feature.get('foreignLanguageGroup')) {
         let ffc = this.getColor(this.congregation.foreignFillColor)
-        let fsc = this.getColor(this.congregation.foreignStrokeColor)
+        const coverageColor = this.getForeignLanguageCoverageColor(this.getForeignLanguageCoverage(feature));
+        let fsc = this.getColor(coverageColor ?? this.congregation.foreignStrokeColor)
         if (isAssigned) {
           ffc = this.darkenColor(ffc, darkenColorFactor);
-          fsc = this.darkenColor(fsc, darkenColorFactor);
+          if (!coverageColor) {
+            fsc = this.darkenColor(fsc, darkenColorFactor);
+          }
         }
-        style = this.createStyle([ffc[0], ffc[1], ffc[2], 0.1], [fsc[0], fsc[1], fsc[2], 0.5], strokeWidth, this.congregation.foreignTextFillColor, this.congregation.foreignTextStrokeColor, 2);
+        style = this.createStyle([ffc[0], ffc[1], ffc[2], 0.1], [fsc[0], fsc[1], fsc[2], coverageColor ? 0.95 : 0.5], strokeWidth, this.congregation.foreignTextFillColor, this.congregation.foreignTextStrokeColor, 2);
       } else {
         let ffc = this.getColor(this.congregation.defaultFillColor)
         let fsc = this.getColor(this.congregation.defaultStrokeColor)
@@ -610,6 +625,32 @@ export class AppComponent implements OnInit, OnDestroy {
     return territory?.registryEntryList?.some(entry =>
       !entry.returnDate && entry.preacher.name !== 'CongregationPool'
     ) ?? false;
+  }
+
+  private getForeignLanguageCoverage(feature: Feature): ForeignLanguageCoverage {
+    const featureCoverage = feature.get('foreignLanguageCoverage');
+
+    if ([0, 25, 50, 100].includes(featureCoverage)) {
+      return featureCoverage as ForeignLanguageCoverage;
+    }
+
+    return this.territoriesSorted.find(item => item.number === feature.get('territoryNumber'))
+      ?.foreignLanguageCoverage ?? null;
+  }
+
+  private getForeignLanguageCoverageColor(coverage: ForeignLanguageCoverage): string | null {
+    switch (coverage) {
+      case 100:
+        return '#168447';
+      case 50:
+        return '#A8B820';
+      case 25:
+        return '#E0A800';
+      case 0:
+        return '#D64545';
+      default:
+        return null;
+    }
   }
 
   private darkenColor(color: number[], amount: number): number[] {
@@ -842,6 +883,8 @@ export class AppComponent implements OnInit, OnDestroy {
       residentialUnits: [],
       url: '',
       foreignLanguageGroup: feature.get('foreignLanguageGroup'),
+      foreignLanguageCoverage: feature.get('foreignLanguageCoverage') ?? null,
+      hasDoNotVisitEntries: false,
       businessSector: feature.get('businessSector'),
       industrySector: feature.get('industrySector'),
     }
@@ -924,6 +967,7 @@ export class AppComponent implements OnInit, OnDestroy {
         note: mapDesign.note,
         draft: mapDesign.draft,
         foreignLanguageGroup: mapDesign.foreignLanguageGroup,
+        foreignLanguageCoverage: mapDesign.foreignLanguageCoverage ?? null,
         imported: false, // Set to true if the feature is imported
         businessSector: mapDesign.businessSector,
         industrySector: mapDesign.industrySector
@@ -1652,6 +1696,13 @@ export class AppComponent implements OnInit, OnDestroy {
     window.location.assign(rootUrl.toString());
   }
 
+  protected openDoNotVisitWarning(): void {
+    this.dialog.open(DoNotVisitWarningDialogComponent, {
+      width: '28rem',
+      maxWidth: 'calc(100vw - 24px)'
+    });
+  }
+
   protected exportTerritoryQrCodesAsPdf(): void {
     if (!this.congregation?.rootURL) {
       this.toastr.error('The remote root URL is not configured.');
@@ -2180,6 +2231,7 @@ export class AppComponent implements OnInit, OnDestroy {
       this.lastSelectedTerritory.doNotVisitList = [];
     }
     this.lastSelectedTerritory.doNotVisitList.push(doNotVisitEntry);
+    this.lastSelectedTerritory.exported = false;
     this.lastSelectedFeature.set('additionalNote', `(${this.lastSelectedTerritory.doNotVisitList.length} do not visit)`);
     this.mapService.saveTerritory(this.lastSelectedTerritory).subscribe(() => {
     });
@@ -2189,6 +2241,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   protected deleteDoNotVisit(d: DoNotVisit) {
     this.lastSelectedTerritory.doNotVisitList.splice(this.lastSelectedTerritory.doNotVisitList.indexOf(d), 1);
+    this.lastSelectedTerritory.exported = false;
     this.lastSelectedFeature.set('additionalNote', `(${this.lastSelectedTerritory.doNotVisitList.length} do not visit)`);
     if (this.lastSelectedTerritory.doNotVisitList.length === 0) {
       this.lastSelectedFeature.set('additionalNote', '');
@@ -2239,6 +2292,28 @@ export class AppComponent implements OnInit, OnDestroy {
         getAssignedTerritoryCount: (preacher: Preacher) => this.getAssignedTerritories(preacher).length,
         openTerritories: (preacher: Preacher) => this.openPreacherTerritories(preacher),
         switchGroup: (preacher: Preacher) => this.switchGroup(preacher)
+      }
+    });
+  }
+
+  protected setForeignLanguageCoverage(coverage: Exclude<ForeignLanguageCoverage, null>): void {
+    if (!this.lastSelectedTerritory?.foreignLanguageGroup) {
+      return;
+    }
+
+    this.lastSelectedTerritory.foreignLanguageCoverage = coverage;
+    this.lastSelectedTerritory.exported = false;
+
+    const feature = this.source.getFeatures().find(item =>
+      item.get('territoryNumber') === this.lastSelectedTerritory.number
+    );
+    feature?.set('foreignLanguageCoverage', coverage);
+
+    this.mapService.saveTerritory(this.lastSelectedTerritory).subscribe({
+      next: () => this.vectorLayer.changed(),
+      error: error => {
+        console.error('Error saving foreign-language coverage:', error);
+        this.toastr.error('The foreign-language coverage could not be saved.');
       }
     });
   }
@@ -2364,7 +2439,11 @@ export class AppComponent implements OnInit, OnDestroy {
                     const territoryUploads = territoriesToUpload
                       .filter(territory => territoryMapByNumber.has(territory.number))
                       .map(territory => this.apiService
-                        .uploadJson(territory.uuid!, territoryMapByNumber.get(territory.number)!)
+                        .uploadJson(territory.uuid!, {
+                          ...territoryMapByNumber.get(territory.number)!,
+                          foreignLanguageCoverage: territory.foreignLanguageCoverage ?? null,
+                          hasDoNotVisitEntries: (territory.doNotVisitList?.length ?? 0) > 0
+                        })
                         .pipe(
                           tap(() => {
                             territory.mapExist = true;
@@ -2392,6 +2471,8 @@ export class AppComponent implements OnInit, OnDestroy {
 
                           return {
                             ...map,
+                            foreignLanguageCoverage: territory?.foreignLanguageCoverage ?? null,
+                            hasDoNotVisitEntries: (territory?.doNotVisitList?.length ?? 0) > 0,
                             url: territory?.uuid ?? ''
                           };
                         });
@@ -2619,7 +2700,8 @@ export class AppComponent implements OnInit, OnDestroy {
           territoryNumber: territory.number,
           territoryName: territory.name,
           lastAssignedAt: lastRegistryEntry ? new Date(lastRegistryEntry.assignDate) : null,
-          lastPreacherName: lastRegistryEntry?.preacher.name ?? null
+          lastPreacherName: lastRegistryEntry?.preacher.name ?? null,
+          foreignLanguageCoverage: territory.foreignLanguageCoverage ?? null
         } satisfies TerritoryDetailsItem;
       })
       .sort((first, second) => {

@@ -1,5 +1,5 @@
 import {FormControl} from '@angular/forms';
-import {TerritoryMap} from './MapDesign';
+import {ForeignLanguageCoverage, TerritoryMap} from './MapDesign';
 
 export class Congregation {
   name:string = '';
@@ -65,6 +65,7 @@ export class Territory {
   exported:boolean=false;
   mapExist:boolean=false;
   foreignLanguageGroup:boolean=false;
+  foreignLanguageCoverage:ForeignLanguageCoverage=null;
 }
 
 /**

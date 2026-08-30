@@ -2,12 +2,14 @@ import {Component, Inject} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {MAT_DIALOG_DATA, MatDialogModule, MatDialogRef} from '@angular/material/dialog';
 import {MatButtonModule} from '@angular/material/button';
+import {ForeignLanguageCoverage} from '../../domains/MapDesign';
 
 export interface TerritoryDetailsItem {
   territoryNumber: string;
   territoryName: string;
   lastAssignedAt: Date | null;
   lastPreacherName: string | null;
+  foreignLanguageCoverage: ForeignLanguageCoverage;
 }
 
 export interface TerritoryDetailsDialogData {
@@ -18,7 +20,8 @@ export interface TerritoryDetailsDialogData {
 @Component({
   selector: 'app-territory-details-dialog',
   imports: [CommonModule, MatButtonModule, MatDialogModule],
-  templateUrl: './territory-details-dialog.component.html'
+  templateUrl: './territory-details-dialog.component.html',
+  styleUrl: './territory-details-dialog.component.scss'
 })
 export class TerritoryDetailsDialogComponent {
 

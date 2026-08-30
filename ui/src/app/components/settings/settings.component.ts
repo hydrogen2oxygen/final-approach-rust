@@ -180,6 +180,8 @@ export class SettingsComponent implements OnInit {
 
             return {
               ...mapDesign,
+              foreignLanguageCoverage: territory?.foreignLanguageCoverage ?? null,
+              hasDoNotVisitEntries: (territory?.doNotVisitList?.length ?? 0) > 0,
               url: territory?.uuid ?? ''
             };
           })
