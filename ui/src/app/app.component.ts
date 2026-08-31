@@ -37,6 +37,7 @@ import {
 } from './domains/Congregation';
 import {jsPDF} from 'jspdf';
 import * as QRCode from 'qrcode';
+import {strToU8, zipSync} from 'fflate';
 import {buffer} from 'ol/extent';
 import {click, shiftKeyOnly} from 'ol/events/condition';
 import {SettingsComponent} from './components/settings/settings.component';
@@ -1864,6 +1865,111 @@ export class AppComponent implements OnInit, OnDestroy {
 
     drawFooter();
     pdf.save(`S-13_${serviceYear}.pdf`);
+  }
+
+  protected exportExcelAsXlsx(): void {
+    if (this.territoriesSorted.length === 0) {
+      this.toastr.warning('No territories are available for the Excel export.');
+      return;
+    }
+
+    const escapeXml = (value: string): string => value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
+    const excelDateValue = (value: Date | string | null | undefined): number | null => {
+      if (!value) {
+        return null;
+      }
+
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        return null;
+      }
+
+      return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000 + 25569;
+    };
+    const textCell = (reference: string, value: string, styleIndex = 0): string =>
+      `<c r="${reference}" t="inlineStr"${styleIndex ? ` s="${styleIndex}"` : ''}><is><t>${escapeXml(value)}</t></is></c>`;
+    const dateCell = (reference: string, value: Date | string | null | undefined): string => {
+      const formattedValue = excelDateValue(value);
+      return formattedValue === null
+        ? `<c r="${reference}" s="1"/>`
+        : `<c r="${reference}" s="1"><v>${formattedValue}</v></c>`;
+    };
+    const sortTerritoryNumbers = (first: string, second: string): number =>
+      first.localeCompare(second, undefined, {numeric: true, sensitivity: 'base'});
+    const territories = [...this.territoriesSorted].sort((first, second) =>
+      sortTerritoryNumbers(first.number, second.number)
+    );
+    const realEntries = territories.flatMap(territory =>
+      (territory.registryEntryList ?? [])
+        .filter(entry => entry.preacher?.name && entry.preacher.name !== 'CongregationPool')
+        .map(entry => ({territory, entry}))
+    );
+
+    const preacherNames = new Set<string>();
+    (this.congregation?.preacherList ?? [])
+      .filter(preacher => preacher.name && preacher.name !== 'CongregationPool')
+      .forEach(preacher => preacherNames.add(preacher.name));
+    realEntries.forEach(({entry}) => preacherNames.add(entry.preacher.name));
+
+    const preacherRows = [...preacherNames]
+      .sort((first, second) => first.localeCompare(second, undefined, {sensitivity: 'base'}))
+      .map((preacherName, index) => {
+        const entries = realEntries.filter(({entry}) => entry.preacher.name === preacherName);
+        const currentTerritories = entries
+          .filter(({entry}) => !entry.returnDate)
+          .map(({territory}) => territory.number)
+          .filter((territoryNumber, index, values) => values.indexOf(territoryNumber) === index)
+          .sort(sortTerritoryNumbers);
+        const lastEntry = [...entries].sort((first, second) =>
+          new Date(second.entry.assignDate).getTime() - new Date(first.entry.assignDate).getTime()
+        )[0]?.entry;
+
+        const rowNumber = index + 2;
+        return `<row r="${rowNumber}">${textCell(`A${rowNumber}`, preacherName)}${textCell(`B${rowNumber}`, currentTerritories.join(', '))}${dateCell(`C${rowNumber}`, lastEntry?.assignDate)}</row>`;
+      })
+      .join('');
+
+    let territoryRowNumber = 2;
+    const territoryRows = territories.flatMap(territory => {
+      const entries = (territory.registryEntryList ?? [])
+        .filter(entry => entry.preacher?.name && entry.preacher.name !== 'CongregationPool')
+        .sort((first, second) => new Date(first.assignDate).getTime() - new Date(second.assignDate).getTime())
+        .slice(-4);
+
+      return entries.map(entry => {
+        const rowNumber = territoryRowNumber++;
+        return `<row r="${rowNumber}">${textCell(`A${rowNumber}`, territory.number)}${textCell(`B${rowNumber}`, entry.preacher.name)}${dateCell(`C${rowNumber}`, entry.assignDate)}${dateCell(`D${rowNumber}`, entry.returnDate)}</row>`;
+      });
+    }).join('');
+
+    const preacherLastRow = Math.max(preacherNames.size + 1, 1);
+    const territoryLastRow = Math.max(territoryRowNumber - 1, 1);
+    const worksheet = (columns: string, rows: string, lastColumn: string, lastRow: number): string => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:${lastColumn}${lastRow}"/><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${columns}</cols><sheetData>${rows}</sheetData><autoFilter ref="A1:${lastColumn}${lastRow}"/></worksheet>`;
+    const preacherHeader = `<row r="1">${textCell('A1', 'PREACHER', 2)}${textCell('B1', 'TERRITORIES', 2)}${textCell('C1', 'LAST REGISTRY ENTRY OF ANY TERRITORY', 2)}</row>`;
+    const territoryHeader = `<row r="1">${textCell('A1', 'TERRITORY', 2)}${textCell('B1', 'REGISTRY ENTRY NAME', 2)}${textCell('C1', 'REGISTRY ENTRY START', 2)}${textCell('D1', 'REGISTRY ENTRY RETURN', 2)}</row>`;
+    const files: Record<string, Uint8Array> = {
+      '[Content_Types].xml': strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`),
+      '_rels/.rels': strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`),
+      'xl/workbook.xml': strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="PREACHERS" sheetId="1" r:id="rId1"/><sheet name="TERRITORIES" sheetId="2" r:id="rId2"/></sheets></workbook>`),
+      'xl/_rels/workbook.xml.rels': strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`),
+      'xl/styles.xml': strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="yyyy-mm-dd"/></numFmts><fonts count="2"><font><sz val="10"/><name val="Arial"/></font><font><b/><sz val="10"/><name val="Arial"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`),
+      'xl/worksheets/sheet1.xml': strToU8(worksheet('<col min="1" max="1" width="18" customWidth="1"/><col min="2" max="2" width="24" customWidth="1"/><col min="3" max="3" width="38" customWidth="1"/>', preacherHeader + preacherRows, 'C', preacherLastRow)),
+      'xl/worksheets/sheet2.xml': strToU8(worksheet('<col min="1" max="1" width="15" customWidth="1"/><col min="2" max="2" width="27" customWidth="1"/><col min="3" max="4" width="22" customWidth="1"/>', territoryHeader + territoryRows, 'D', territoryLastRow))
+    };
+    const xlsx = zipSync(files, {level: 6});
+    const blob = new Blob([xlsx.slice().buffer], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `finalApproach_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    anchor.click();
+    URL.revokeObjectURL(url);
   }
 
   protected exportTerritoryQrCodesAsPdf(): void {
