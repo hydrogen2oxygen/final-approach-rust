@@ -1203,11 +1203,6 @@ export class AppComponent implements OnInit, OnDestroy {
     this.mapService.loadCongregation().subscribe({
       "next": congregation => {
         this.congregation = congregation[0];
-        this.apiService.setCongregation(this.congregation)
-
-        // Sort preachers by name
-        this.congregation.preacherList = this.congregation.preacherList.sort((a, b) => (a.name > b.name ? 1 : -1));
-
         if (!this.congregation) {
           console.log("No Congregation found. Creating a new one")
           this.congregation = new Congregation();
@@ -1221,6 +1216,12 @@ export class AppComponent implements OnInit, OnDestroy {
           this.congregation.foreignTextStrokeColor = "#ffffff";
           this.mapService.saveCongregation(this.congregation).subscribe(() => console.log("Congregation saved"))
         }
+
+        this.apiService.setCongregation(this.congregation)
+
+        // Sort preachers by name
+        this.congregation.preacherList = (this.congregation.preacherList ?? [])
+          .sort((a, b) => (a.name > b.name ? 1 : -1));
       },
       "error": (error) => {
         console.log(error)

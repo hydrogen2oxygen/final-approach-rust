@@ -48,31 +48,41 @@ export class SettingsComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.mapService.loadCongregation().subscribe(congregation => {
-      this.congregation = congregation[0]
-      this.apiService.setCongregation(this.congregation)
+    this.mapService.loadCongregation().subscribe({
+      next: congregation => {
+        this.congregation = congregation[0] ?? this.createDefaultCongregation();
+        this.apiService.setCongregation(this.congregation)
 
-      this.congregationName.setValue(this.congregation.name)
-      this.note.setValue(this.congregation.notes)
-      this.includeForeignLanguageGroup.setValue(this.congregation.includeForeignLanguageGroup)
-      this.foreignLanguageGroupName.setValue(this.congregation.foreignLanguageGroupName)
-      this.defaultFillColor.setValue(this.congregation.defaultFillColor)
-      this.defaultStrokeColor.setValue(this.congregation.defaultStrokeColor)
-      this.defaultTextFillColor.setValue(this.congregation.defaultTextFillColor)
-      this.defaultTextStrokeColor.setValue(this.congregation.defaultTextStrokeColor)
-      this.foreignFillColor.setValue(this.congregation.foreignFillColor)
-      this.foreignStrokeColor.setValue(this.congregation.foreignStrokeColor)
-      this.foreignTextFillColor.setValue(this.congregation.foreignTextFillColor)
-      this.foreignTextStrokeColor.setValue(this.congregation.foreignTextStrokeColor)
-      this.apiUUID.setValue(this.congregation.apiUUID)
-      this.apiSECRET.setValue(this.congregation.apiSECRET)
-      this.rootURL.setValue(this.congregation.rootURL)
-      console.log('SettingsComponent initialized')
+        this.congregationName.setValue(this.congregation.name)
+        this.note.setValue(this.congregation.notes)
+        this.includeForeignLanguageGroup.setValue(this.congregation.includeForeignLanguageGroup)
+        this.foreignLanguageGroupName.setValue(this.congregation.foreignLanguageGroupName)
+        this.defaultFillColor.setValue(this.congregation.defaultFillColor)
+        this.defaultStrokeColor.setValue(this.congregation.defaultStrokeColor)
+        this.defaultTextFillColor.setValue(this.congregation.defaultTextFillColor)
+        this.defaultTextStrokeColor.setValue(this.congregation.defaultTextStrokeColor)
+        this.foreignFillColor.setValue(this.congregation.foreignFillColor)
+        this.foreignStrokeColor.setValue(this.congregation.foreignStrokeColor)
+        this.foreignTextFillColor.setValue(this.congregation.foreignTextFillColor)
+        this.foreignTextStrokeColor.setValue(this.congregation.foreignTextStrokeColor)
+        this.apiUUID.setValue(this.congregation.apiUUID)
+        this.apiSECRET.setValue(this.congregation.apiSECRET)
+        this.rootURL.setValue(this.congregation.rootURL)
+        console.log('SettingsComponent initialized')
+      },
+      error: error => {
+        console.error('Settings could not be loaded:', error);
+        this.toastr.error('Settings could not be loaded', 'Settings');
+      }
     })
 
   }
 
   protected save() {
+    if (!this.congregation) {
+      this.congregation = this.createDefaultCongregation();
+    }
+
     this.congregation.notes = this.note.value;
     this.congregation.name = this.congregationName.value;
     this.congregation.includeForeignLanguageGroup = this.includeForeignLanguageGroup.value;
@@ -91,13 +101,32 @@ export class SettingsComponent implements OnInit {
 
     this.apiService.setCongregation(this.congregation)
 
-    this.mapService.saveCongregation(this.congregation).subscribe(()=> {
-      this.toastr.success('Saved', 'Settings')
+    this.mapService.saveCongregation(this.congregation).subscribe({
+      next: () => {
+        this.toastr.success('Saved', 'Settings')
 
-      this.dialogRef.close({
-        congregation: this.congregation
-      });
+        this.dialogRef.close({
+          congregation: this.congregation
+        });
+      },
+      error: error => {
+        console.error('Settings could not be saved:', error);
+        this.toastr.error('Settings could not be saved', 'Settings');
+      }
     });
+  }
+
+  private createDefaultCongregation(): Congregation {
+    const congregation = new Congregation();
+    congregation.defaultFillColor = '#00ff62';
+    congregation.defaultStrokeColor = '#088000';
+    congregation.defaultTextFillColor = '#194700';
+    congregation.defaultTextStrokeColor = '#ffffff';
+    congregation.foreignFillColor = '#4a70e3';
+    congregation.foreignStrokeColor = '#424bcd';
+    congregation.foreignTextFillColor = '#6c009e';
+    congregation.foreignTextStrokeColor = '#ffffff';
+    return congregation;
   }
 
   protected readonly Personas = Personas;

@@ -6,6 +6,11 @@ use mime_guess::from_path;
 use rust_embed::RustEmbed;
 use serde_json::Value;
 use std::env;
+use std::path::PathBuf;
+
+struct AppState {
+    data_dir: PathBuf,
+}
 
 #[derive(RustEmbed)]
 #[folder = "./ui/dist/ui/browser/"]
@@ -64,7 +69,11 @@ async fn ping() -> impl Responder {
 }
 
 #[post("/api/data/{path}/{id}")]
-async fn save(request_path: web::Path<(String,String)>, body: String) -> impl Responder {
+async fn save(
+    request_path: web::Path<(String,String)>,
+    body: String,
+    state: web::Data<AppState>,
+) -> impl Responder {
 
     let (path, id) = request_path.into_inner();
     info!("Received data: {}", body);
@@ -86,12 +95,13 @@ async fn save(request_path: web::Path<(String,String)>, body: String) -> impl Re
         }
     };
 
-    if let Err(e) = std::fs::create_dir_all(format!("./data/{}", safe_path)) {
+    let directory = state.data_dir.join(safe_path);
+    if let Err(e) = std::fs::create_dir_all(&directory) {
         error!("Fehler beim Erstellen des Verzeichnisses: {}", e);
         return HttpResponse::InternalServerError()
             .body("Fehler beim Erstellen des Verzeichnisses");
     }
-    if let Err(e) = std::fs::write(format!("./data/{}/{}.json", safe_path, id), body) {
+    if let Err(e) = std::fs::write(directory.join(format!("{}.json", id)), body) {
         error!("Fehler beim Schreiben der Datei: {}", e);
         return HttpResponse::InternalServerError().body("Fehler beim Schreiben der Datei");
     }
@@ -101,7 +111,7 @@ async fn save(request_path: web::Path<(String,String)>, body: String) -> impl Re
 }
 
 #[get("/api/data/{path}")]
-async fn load_all(request_path: web::Path<String>) -> impl Responder {
+async fn load_all(request_path: web::Path<String>, state: web::Data<AppState>) -> impl Responder {
     let path = request_path.into_inner();
 
     let safe_path = match allowed_data_path(&path) {
@@ -109,7 +119,7 @@ async fn load_all(request_path: web::Path<String>) -> impl Responder {
         None => return HttpResponse::BadRequest().body("Invalid path"),
     };
 
-    let path = format!("./data/{}", safe_path);
+    let path = state.data_dir.join(safe_path);
     let mut data: Vec<Value> = Vec::new();
 
     if let Ok(entries) = std::fs::read_dir(path) {
@@ -132,7 +142,10 @@ async fn load_all(request_path: web::Path<String>) -> impl Responder {
 }
 
 #[delete("/api/data/{path}/{id}")]
-async fn delete(request_path: web::Path<(String,String)>) -> impl Responder {
+async fn delete(
+    request_path: web::Path<(String,String)>,
+    state: web::Data<AppState>,
+) -> impl Responder {
     let (path, id) = request_path.into_inner();
 
     let safe_path = match allowed_data_path(&path) {
@@ -144,13 +157,13 @@ async fn delete(request_path: web::Path<(String,String)>) -> impl Responder {
         return HttpResponse::BadRequest().body("Invalid id");
     }
 
-    let path = format!("./data/{}/{}.json", safe_path, id);
+    let path = state.data_dir.join(safe_path).join(format!("{}.json", id));
 
     if std::fs::remove_file(&path).is_ok() {
-        info!("data/{}/{}.json deleted", path, id);
+        info!("{} deleted", path.display());
         HttpResponse::Ok().json(serde_json::json!({"status": "ok"}))
     } else {
-        warn!("data/{}/{}.json not found!", path, id);
+        warn!("{} not found!", path.display());
         HttpResponse::NotFound().json(serde_json::json!({"status": "not found"}))
     }
 }
@@ -164,10 +177,24 @@ async fn main() -> std::io::Result<()> {
     let port = env::args().nth(1).unwrap_or_else(|| "8080".to_string());
     let bind_addr = format!("127.0.0.1:{}", port);
 
-    info!("Starting server ... http:\\\\{}", bind_addr);
+    let executable_dir = env::current_exe()
+        .ok()
+        .and_then(|path| path.parent().map(|parent| parent.to_path_buf()))
+        .unwrap_or(env::current_dir()?);
+    let data_dir = executable_dir.join("data");
 
-    HttpServer::new(|| {
+    for directory in ["mapDesigns", "territories", "congregation"] {
+        std::fs::create_dir_all(data_dir.join(directory))?;
+    }
+
+    info!("Starting server ... http:\\\\{}", bind_addr);
+    info!("Using data directory: {}", data_dir.display());
+
+    let state = web::Data::new(AppState { data_dir });
+
+    HttpServer::new(move || {
         App::new()
+            .app_data(state.clone())
             .wrap(
                 Cors::default()
                     .allow_any_origin() // * — no origin restrictions
