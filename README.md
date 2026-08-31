@@ -21,6 +21,18 @@ PowerShell Run
 $env:RUST_LOG="info"; cargo run
 ````
 
+### Windows installer with Tauri
+
+The Tauri desktop wrapper starts the existing Actix server as a sidecar on a free local port. Application data is stored in the user's Tauri application data directory.
+
+````powershell
+cd ui
+npm install
+npm run tauri:build
+````
+
+The NSIS and MSI installers are written to `ui/src-tauri/target/release/bundle`.
+
 ### Notes on Design
 - all in one page, all components are dialogs
 - fake sftp and webserver during developing mode

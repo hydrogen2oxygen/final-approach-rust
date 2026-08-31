@@ -1,3 +1,5 @@
+#![cfg_attr(all(windows, feature = "desktop-sidecar"), windows_subsystem = "windows")]
+
 use actix_cors::Cors;
 use actix_web::http::header;
 use actix_web::{delete, get, post, web, App, HttpResponse, HttpServer, Responder};
@@ -174,14 +176,20 @@ async fn main() -> std::io::Result<()> {
     // Init logger ASAP
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
-    let port = env::args().nth(1).unwrap_or_else(|| "8080".to_string());
+    let mut arguments = env::args().skip(1);
+    let port = arguments.next().unwrap_or_else(|| "8080".to_string());
     let bind_addr = format!("127.0.0.1:{}", port);
 
-    let executable_dir = env::current_exe()
-        .ok()
-        .and_then(|path| path.parent().map(|parent| parent.to_path_buf()))
-        .unwrap_or(env::current_dir()?);
-    let data_dir = executable_dir.join("data");
+    let data_dir = match arguments.next() {
+        Some(path) => std::path::PathBuf::from(path),
+        None => {
+            let executable_dir = env::current_exe()
+                .ok()
+                .and_then(|path| path.parent().map(|parent| parent.to_path_buf()))
+                .unwrap_or(env::current_dir()?);
+            executable_dir.join("data")
+        }
+    };
 
     for directory in ["mapDesigns", "territories", "congregation"] {
         std::fs::create_dir_all(data_dir.join(directory))?;

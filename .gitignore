@@ -28,3 +28,6 @@ ui/.vscode
 /.idea/
 /data/
 /ui/public/browser/
+/ui/src-tauri/binaries/
+/ui/src-tauri/target/
+/ui/src-tauri/backend-target/

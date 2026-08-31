@@ -3,6 +3,9 @@ name = "finalApproach"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+desktop-sidecar = []
+
 [dependencies]
 actix-web = "4"
 rust-embed = "8"

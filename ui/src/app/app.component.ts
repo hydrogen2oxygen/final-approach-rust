@@ -296,6 +296,9 @@ export class AppComponent implements OnInit, OnDestroy {
       } else if (event.key === 'F5') {
         event.preventDefault();
         this.persona = Personas.GROUP_LEADER;
+      } else if (event.key === 'F11') {
+        event.preventDefault();
+        void this.toggleFullscreen();
       }
 
       localStorage.setItem('persona', this.persona);
@@ -371,7 +374,6 @@ export class AppComponent implements OnInit, OnDestroy {
         this.version = info.version;
       });
 
-      this.loadHome()
       this.loadMapDesign()
       this.reloadCongregationData();
     }
@@ -754,14 +756,24 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   loadHome(): void {
+    if (this.congregation?.homeCoordinates && this.congregation.homeZoom != null) {
+      this.home = {
+        coordinates: this.congregation.homeCoordinates,
+        zoom: this.congregation.homeZoom
+      };
+
+      if (this.map) {
+        this.map.getView().setCenter(this.home.coordinates);
+        this.map.getView().setZoom(this.home.zoom);
+      }
+      return;
+    }
+
     this.mapService.loadHome().subscribe(home => {
       this.home = home;
       if (home && this.map) {
         this.map.getView().setCenter(home.coordinates);
         this.map.getView().setZoom(home.zoom);
-      } else if (this.congregation && this.map) {
-        this.map.getView().setCenter(this.congregation.homeCoordinates);
-        this.map.getView().setZoom(this.congregation.homeZoom);
       }
     });
   }
@@ -1223,6 +1235,8 @@ export class AppComponent implements OnInit, OnDestroy {
         // Sort preachers by name
         this.congregation.preacherList = (this.congregation.preacherList ?? [])
           .sort((a, b) => (a.name > b.name ? 1 : -1));
+
+        this.loadHome();
       },
       "error": (error) => {
         console.log(error)
@@ -2527,11 +2541,18 @@ export class AppComponent implements OnInit, OnDestroy {
     }
   }
 
-  protected toggleFullscreen() {
+  protected async toggleFullscreen(): Promise<void> {
+    if ((window as any).__TAURI_INTERNALS__) {
+      const {getCurrentWindow} = await import('@tauri-apps/api/window');
+      const currentWindow = getCurrentWindow();
+      await currentWindow.setFullscreen(!(await currentWindow.isFullscreen()));
+      return;
+    }
+
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
+      await document.documentElement.requestFullscreen();
     } else {
-      document.exitFullscreen();
+      await document.exitFullscreen();
     }
   }
 
