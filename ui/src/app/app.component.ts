@@ -1704,6 +1704,168 @@ export class AppComponent implements OnInit, OnDestroy {
     });
   }
 
+  protected exportS13AsPdf(): void {
+    const territories = [...this.territoriesSorted].sort((first, second) =>
+      first.number.localeCompare(second.number, undefined, {numeric: true, sensitivity: 'base'})
+    );
+
+    if (territories.length === 0) {
+      this.toastr.warning('No territories are available for the S-13 report.');
+      return;
+    }
+
+    const pdf = new jsPDF({orientation: 'portrait', unit: 'mm', format: 'a4'});
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const tableX = 12.5;
+    const tableWidth = pageWidth - tableX * 2;
+    const territoryNumberWidth = 13;
+    const lastCompletedWidth = 22.5;
+    const assignmentWidth = (tableWidth - territoryNumberWidth - lastCompletedWidth) / 4;
+    const headerY = 38;
+    const headerHeight = 14;
+    const rowHeight = 11.2;
+    const rowsPerPage = 20;
+    const serviceYearDate = new Date();
+    const serviceYear = serviceYearDate.getMonth() >= 8
+      ? serviceYearDate.getFullYear() + 1
+      : serviceYearDate.getFullYear();
+
+    const formatDate = (value: Date | string | null | undefined): string => {
+      if (!value) {
+        return '';
+      }
+
+      const date = new Date(value);
+      return Number.isNaN(date.getTime())
+        ? ''
+        : `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+    };
+
+    const drawHeader = (): void => {
+      pdf.setTextColor(0);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(14);
+      pdf.text('TERRITORY ASSIGNMENT RECORD', pageWidth / 2, 19, {align: 'center'});
+      pdf.setFontSize(10);
+      pdf.text('Service Year:', tableX, 29);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(String(serviceYear), tableX + 31, 29);
+      pdf.setLineWidth(0.35);
+      pdf.line(tableX + 30, 30.5, tableX + 50, 30.5);
+
+      pdf.setFillColor(215, 215, 215);
+      pdf.rect(tableX, headerY, tableWidth, headerHeight, 'F');
+      pdf.setDrawColor(0);
+      pdf.setLineWidth(0.6);
+      pdf.rect(tableX, headerY, tableWidth, headerHeight);
+
+      const assignmentStartX = tableX + territoryNumberWidth + lastCompletedWidth;
+      pdf.line(tableX + territoryNumberWidth, headerY, tableX + territoryNumberWidth, headerY + headerHeight);
+      pdf.setLineWidth(1.1);
+      pdf.line(assignmentStartX, headerY, assignmentStartX, headerY + headerHeight);
+
+      for (let index = 0; index < 4; index++) {
+        const blockX = assignmentStartX + assignmentWidth * index;
+        if (index > 0) {
+          pdf.line(blockX, headerY, blockX, headerY + headerHeight);
+        }
+        pdf.setLineWidth(0.2);
+        pdf.line(blockX, headerY + 6, blockX + assignmentWidth, headerY + 6);
+        pdf.line(blockX + assignmentWidth / 2, headerY + 6, blockX + assignmentWidth / 2, headerY + headerHeight);
+        pdf.setLineWidth(1.1);
+      }
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8);
+      pdf.text(['Terr.', 'no.'], tableX + territoryNumberWidth / 2, headerY + 6.2, {align: 'center'});
+      pdf.text(['Last date', 'completed*'], tableX + territoryNumberWidth + lastCompletedWidth / 2, headerY + 6.2, {align: 'center'});
+
+      for (let index = 0; index < 4; index++) {
+        const blockX = assignmentStartX + assignmentWidth * index;
+        pdf.text('Assigned to', blockX + assignmentWidth / 2, headerY + 4.2, {align: 'center'});
+        pdf.setFontSize(6.5);
+        pdf.text(['Date', 'assigned'], blockX + assignmentWidth / 4, headerY + 9.2, {align: 'center'});
+        pdf.text(['Date', 'completed'], blockX + assignmentWidth * 0.75, headerY + 9.2, {align: 'center'});
+        pdf.setFontSize(8);
+      }
+    };
+
+    const drawFooter = (): void => {
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(7.5);
+      pdf.text(
+        '*When beginning a new sheet, use this column to record the date on which each territory was last completed.',
+        tableX,
+        282
+      );
+      pdf.text('S-13-E  1/22', tableX, 288);
+    };
+
+    territories.forEach((territory, territoryIndex) => {
+      const rowIndex = territoryIndex % rowsPerPage;
+      if (territoryIndex > 0 && rowIndex === 0) {
+        drawFooter();
+        pdf.addPage('a4', 'portrait');
+      }
+      if (rowIndex === 0) {
+        drawHeader();
+      }
+
+      const entries = (territory.registryEntryList ?? [])
+        .filter(entry => entry.preacher?.name !== 'CongregationPool')
+        .sort((first, second) => new Date(first.assignDate).getTime() - new Date(second.assignDate).getTime());
+      const recentEntries = entries.slice(-4);
+      const lastCompletedEntry = [...entries].reverse().find(entry => Boolean(entry.returnDate));
+      const y = headerY + headerHeight + rowIndex * rowHeight;
+      const assignmentStartX = tableX + territoryNumberWidth + lastCompletedWidth;
+
+      pdf.setDrawColor(0);
+      pdf.setLineWidth(0.6);
+      pdf.rect(tableX, y, tableWidth, rowHeight);
+      pdf.setLineWidth(0.2);
+      pdf.line(tableX + territoryNumberWidth, y, tableX + territoryNumberWidth, y + rowHeight);
+      pdf.setLineWidth(1.1);
+      pdf.line(assignmentStartX, y, assignmentStartX, y + rowHeight);
+
+      for (let index = 0; index < 4; index++) {
+        const blockX = assignmentStartX + assignmentWidth * index;
+        if (index > 0) {
+          pdf.line(blockX, y, blockX, y + rowHeight);
+        }
+        pdf.setLineWidth(0.2);
+        pdf.line(blockX, y + rowHeight / 2, blockX + assignmentWidth, y + rowHeight / 2);
+        pdf.line(blockX + assignmentWidth / 2, y + rowHeight / 2, blockX + assignmentWidth / 2, y + rowHeight);
+        pdf.setLineWidth(1.1);
+      }
+
+      pdf.setTextColor(0);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(7.5);
+      pdf.text(territory.number, tableX + territoryNumberWidth / 2, y + rowHeight / 2 + 1, {align: 'center'});
+      pdf.setFontSize(6.5);
+      pdf.text(
+        formatDate(lastCompletedEntry?.returnDate),
+        tableX + territoryNumberWidth + lastCompletedWidth / 2,
+        y + rowHeight / 2 + 1,
+        {align: 'center'}
+      );
+
+      recentEntries.forEach((entry, entryIndex) => {
+        const blockX = assignmentStartX + assignmentWidth * entryIndex;
+        const preacherName = entry.preacher?.name ?? '';
+        const nameLines = pdf.splitTextToSize(preacherName, assignmentWidth - 2).slice(0, 1);
+        pdf.setFontSize(6.5);
+        pdf.text(nameLines, blockX + assignmentWidth / 2, y + 3.5, {align: 'center'});
+        pdf.setFontSize(5.8);
+        pdf.text(formatDate(entry.assignDate), blockX + assignmentWidth / 4, y + rowHeight - 1.6, {align: 'center'});
+        pdf.text(formatDate(entry.returnDate), blockX + assignmentWidth * 0.75, y + rowHeight - 1.6, {align: 'center'});
+      });
+    });
+
+    drawFooter();
+    pdf.save(`S-13_${serviceYear}.pdf`);
+  }
+
   protected exportTerritoryQrCodesAsPdf(): void {
     if (!this.congregation?.rootURL) {
       this.toastr.error('The remote root URL is not configured.');

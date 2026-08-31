@@ -169,6 +169,11 @@
         <mat-icon>qr_code_2</mat-icon>
         QR
       </button>
+      <button class="icon-button icon-success" title="CREATE S-13 TERRITORY ASSIGNMENT RECORD"
+              (click)="exportS13AsPdf()">
+        <mat-icon>description</mat-icon>
+        S-13
+      </button>
     }
     @case ('PREACHER') {
       @if (knownRemoteOverviewCount > 0) {
