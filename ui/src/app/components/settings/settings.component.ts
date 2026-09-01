@@ -9,6 +9,7 @@ import {FormControl, ReactiveFormsModule} from '@angular/forms';
 import {ToastrService} from 'ngx-toastr';
 import {ApiService} from '../../services/api.service';
 import {forkJoin} from 'rxjs';
+import {UpdateService} from '../../services/update.service';
 
 @Component({
   selector: 'app-settings',
@@ -21,7 +22,7 @@ import {forkJoin} from 'rxjs';
 export class SettingsComponent implements OnInit {
 
   persona: string = localStorage.getItem('persona') || Personas.DESIGNER;
-  private readonly isTauri = Boolean((window as any).__TAURI_INTERNALS__);
+  protected readonly isTauri = Boolean((window as any).__TAURI_INTERNALS__);
   congregation: Congregation | undefined;
   congregationName = new FormControl('');
   note = new FormControl('');
@@ -46,7 +47,8 @@ export class SettingsComponent implements OnInit {
     private dialogRef: MatDialogRef<SettingsComponent>,
     private mapService: MapService,
     private toastr: ToastrService,
-    private apiService:ApiService
+    private apiService:ApiService,
+    protected updateService: UpdateService
   ) {}
 
   ngOnInit(): void {
@@ -229,6 +231,10 @@ export class SettingsComponent implements OnInit {
         this.toastr.error(`UI file could not be uploaded${file}: ${details}`, 'Settings');
       }
     });
+  }
+
+  protected checkForUpdates(): void {
+    this.updateService.checkForUpdate(true);
   }
 
   protected uploadAllTerritoriesOverview(): void {

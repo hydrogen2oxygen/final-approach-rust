@@ -60,6 +60,7 @@ import {
 } from './components/territory-details-dialog/territory-details-dialog.component';
 import {PreacherDetailsDialogComponent} from './components/preacher-details-dialog/preacher-details-dialog.component';
 import {DoNotVisitWarningDialogComponent} from './components/do-not-visit-warning-dialog/do-not-visit-warning-dialog.component';
+import {UpdateService} from './services/update.service';
 import {
   RemoteOverviewAccess,
   RemoteOverviewAccessDialogComponent
@@ -162,11 +163,14 @@ export class AppComponent implements OnInit, OnDestroy {
     private appService: AppService,
     private toastr: ToastrService,
     private apiService: ApiService,
-    private remoteOverviewHistoryService: RemoteOverviewHistoryService
+    private remoteOverviewHistoryService: RemoteOverviewHistoryService,
+    private updateService: UpdateService
   ) {
   }
 
   ngOnInit(): void {
+
+    this.updateService.checkForUpdate();
 
     this.osmLayer = new TileLayer({
       source: new OSM({

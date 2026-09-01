@@ -1,0 +1,14 @@
+:host {
+  display: block;
+}
+
+.update-settings {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.update-settings h6 {
+  margin: 0;
+}

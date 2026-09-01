@@ -14,6 +14,7 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": ["nsis", "msi"],
     "externalBin": ["binaries/finalApproach-server"],
     "icon": [
@@ -29,6 +30,17 @@
       "nsis": {
         "installMode": "currentUser",
         "languages": ["English", "German"]
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "REPLACE_WITH_TAURI_UPDATER_PUBLIC_KEY",
+      "endpoints": [
+        "https://github.com/hydrogen2oxygen/final-approach-rust/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
       }
     }
   }

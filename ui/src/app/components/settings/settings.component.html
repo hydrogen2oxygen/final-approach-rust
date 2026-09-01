@@ -98,6 +98,17 @@
            [formControl]="territoryOverviewPassword">
   </div>
   <hr>
+  @if (isTauri) {
+    <section class="update-settings">
+      <h6>Application updates</h6>
+      <button class="btn btn-secondary" type="button"
+              [disabled]="updateService.isChecking || updateService.isInstalling"
+              (click)="checkForUpdates()">
+        {{ updateService.isChecking ? 'Checking for updates...' : 'Check for updates' }}
+      </button>
+    </section>
+    <hr>
+  }
   <button class="btn btn-success" (click)="save()">Save</button>
   <button class="btn btn-primary" (click)="uploadUI()" style="margin-left: 0.5rem">Upload UI</button>
   <button class="btn btn-primary" (click)="uploadAllTerritoriesOverview()" style="margin-left: 0.5rem">
