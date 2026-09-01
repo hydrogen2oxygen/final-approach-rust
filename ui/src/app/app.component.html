@@ -9,6 +9,12 @@
     <button class="icon-button icon-primary" (click)="openSettings()" title="Settings">
       <mat-icon>settings</mat-icon>
     </button>
+
+    @if (isLocalhost && isTauri) {
+      <button class="icon-button icon-primary" (click)="openDataFolder()" title="Open data folder">
+        <mat-icon>folder</mat-icon>
+      </button>
+    }
   }
   @if (!isLocalhost) {
     @if (remoteTerritoryMap?.hasDoNotVisitEntries) {

@@ -7,6 +7,24 @@ use tauri_plugin_shell::ShellExt;
 
 struct BackendProcess(Mutex<Option<CommandChild>>);
 
+#[tauri::command]
+fn open_data_folder(app: tauri::AppHandle) -> Result<(), String> {
+    let data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?
+        .join("data");
+    std::fs::create_dir_all(&data_dir).map_err(|error| error.to_string())?;
+
+    #[cfg(target_os = "windows")]
+    std::process::Command::new("explorer")
+        .arg(&data_dir)
+        .spawn()
+        .map_err(|error| error.to_string())?;
+
+    Ok(())
+}
+
 fn reserve_free_port() -> std::io::Result<u16> {
     let listener = TcpListener::bind(("127.0.0.1", 0))?;
     Ok(listener.local_addr()?.port())
@@ -26,6 +44,7 @@ fn wait_for_backend(address: SocketAddr, timeout: Duration) -> bool {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![open_data_folder])
         .plugin(tauri_plugin_single_instance::init(|app, _arguments, _working_directory| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();

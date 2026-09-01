@@ -150,6 +150,7 @@ export class AppComponent implements OnInit, OnDestroy {
     window.location.hostname === 'localhost' ||
     window.location.hostname === '127.0.0.1' ||
     window.location.hostname === '::1';
+  isTauri = Boolean((window as any).__TAURI_INTERNALS__);
 
   constructor(
     private dialog: MatDialog,
@@ -1717,6 +1718,20 @@ export class AppComponent implements OnInit, OnDestroy {
       width: '28rem',
       maxWidth: 'calc(100vw - 24px)'
     });
+  }
+
+  protected async openDataFolder(): Promise<void> {
+    if (!this.isTauri) {
+      return;
+    }
+
+    try {
+      const {invoke} = await import('@tauri-apps/api/core');
+      await invoke('open_data_folder');
+    } catch (error) {
+      console.error('Could not open the data folder:', error);
+      this.toastr.error(`The data folder could not be opened: ${String(error)}`);
+    }
   }
 
   protected exportS13AsPdf(): void {

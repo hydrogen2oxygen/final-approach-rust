@@ -1,0 +1,5 @@
+[[permission]]
+identifier = "allow-open-data-folder"
+description = "Allows the trusted local Final Approach UI to open its application data folder."
+commands.allow = ["open_data_folder"]
+

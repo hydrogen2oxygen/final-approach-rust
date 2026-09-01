@@ -9,7 +9,7 @@
   "permissions": [
     "core:default",
     "core:window:allow-is-fullscreen",
-    "core:window:allow-set-fullscreen"
+    "core:window:allow-set-fullscreen",
+    "allow-open-data-folder"
   ]
 }
-
