@@ -13,9 +13,7 @@ npm run tauri signer generate -- -w "$env:USERPROFILE\.tauri\final-approach.key"
 
 Keep the private key and its password in a password manager or another secure backup. Losing the key prevents publishing updates that existing installations accept.
 
-1. Replace `REPLACE_WITH_TAURI_UPDATER_PUBLIC_KEY` in `ui/src-tauri/tauri.conf.json` with the complete generated public key.
-2. Add the complete private-key content as the GitHub Actions secret `TAURI_SIGNING_PRIVATE_KEY`.
-3. Add its password as `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
+The public key is configured in `ui/src-tauri/tauri.conf.json`. Add the complete matching private-key content as the GitHub Actions secret `TAURI_SIGNING_PRIVATE_KEY` and its password as `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
 
 The private key and password must never be added to the repository. Windows code signing is separate and is not required by the Tauri updater.
 
