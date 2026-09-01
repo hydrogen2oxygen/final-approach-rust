@@ -92,9 +92,14 @@
     <input type="text" class="form-control" [formControl]="rootURL">
     <button class="btn btn-primary" (click)="ping()">PING</button>
   </div>
+  <div class="input-group input-group-sm" style="margin-top: 0.5rem">
+    <span class="input-group-text" id="territoryOverviewPassword">TERRITORY OVERVIEW PASSWORD</span>
+    <input type="password" class="form-control" autocomplete="new-password"
+           [formControl]="territoryOverviewPassword">
+  </div>
   <hr>
   <button class="btn btn-success" (click)="save()">Save</button>
-  <button class="btn btn-primary" mat-dialog-close (click)="uploadUI()" style="margin-left: 0.5rem">Upload UI</button>
+  <button class="btn btn-primary" (click)="uploadUI()" style="margin-left: 0.5rem">Upload UI</button>
   <button class="btn btn-primary" (click)="uploadAllTerritoriesOverview()" style="margin-left: 0.5rem">
     Upload All Territories
   </button>

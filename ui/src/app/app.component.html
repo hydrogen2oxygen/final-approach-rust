@@ -17,6 +17,10 @@
     }
   }
   @if (!isLocalhost) {
+    <button class="icon-button icon-primary" (click)="openRemoteOverviewAccess()"
+            title="Open a password-protected territory overview">
+      <mat-icon>vpn_key</mat-icon>
+    </button>
     @if (remoteTerritoryMap?.hasDoNotVisitEntries) {
       <button class="icon-button warning-map-control" (click)="openDoNotVisitWarning()"
               title="This territory has do not visit notes">

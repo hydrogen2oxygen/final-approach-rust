@@ -21,6 +21,7 @@ import {forkJoin} from 'rxjs';
 export class SettingsComponent implements OnInit {
 
   persona: string = localStorage.getItem('persona') || Personas.DESIGNER;
+  private readonly isTauri = Boolean((window as any).__TAURI_INTERNALS__);
   congregation: Congregation | undefined;
   congregationName = new FormControl('');
   note = new FormControl('');
@@ -39,6 +40,7 @@ export class SettingsComponent implements OnInit {
   apiUUID = new FormControl('');
   apiSECRET = new FormControl('');
   rootURL = new FormControl('');
+  territoryOverviewPassword = new FormControl('');
 
   constructor(
     private dialogRef: MatDialogRef<SettingsComponent>,
@@ -68,6 +70,7 @@ export class SettingsComponent implements OnInit {
         this.apiUUID.setValue(this.congregation.apiUUID)
         this.apiSECRET.setValue(this.congregation.apiSECRET)
         this.rootURL.setValue(this.congregation.rootURL)
+        this.territoryOverviewPassword.setValue(this.congregation.territoryOverviewPassword ?? '')
         console.log('SettingsComponent initialized')
       },
       error: error => {
@@ -98,6 +101,7 @@ export class SettingsComponent implements OnInit {
     this.congregation.apiUUID = this.apiUUID.value;
     this.congregation.apiSECRET = this.apiSECRET.value;
     this.congregation.rootURL = this.rootURL.value;
+    this.congregation.territoryOverviewPassword = this.territoryOverviewPassword.value ?? '';
 
     this.apiService.setCongregation(this.congregation)
 
@@ -148,26 +152,52 @@ export class SettingsComponent implements OnInit {
   }
 
   async downloadApi(): Promise<void> {
-    const response = await fetch('/API.php');
-    let content = await response.text();
+    try {
+      const response = await fetch('/API.php');
 
-    content = content.replace(
-      "'CHANGE_ME_SECRET_KEY'",
-      `'${this.apiSECRET.value}'`
-    );
+      if (!response.ok) {
+        throw new Error(`API template request failed with status ${response.status}.`);
+      }
 
-    const blob = new Blob([content], {
-      type: 'application/x-httpd-php;charset=utf-8'
-    });
+      let content = await response.text();
 
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+      content = content.replace(
+        "'CHANGE_ME_SECRET_KEY'",
+        `'${this.apiSECRET.value}'`
+      );
 
-    a.href = url;
-    a.download = `${this.apiUUID.value}.php`;
-    a.click();
+      const apiUuid = this.apiUUID.value?.trim();
 
-    URL.revokeObjectURL(url);
+      if (!apiUuid) {
+        throw new Error('An API UUID is required.');
+      }
+
+      if (this.isTauri) {
+        const {invoke} = await import('@tauri-apps/api/core');
+        const filePath = await invoke<string>('save_api_file', {
+          apiUuid,
+          content
+        });
+        this.toastr.success(`API saved to ${filePath}`, 'Settings');
+        return;
+      }
+
+      const blob = new Blob([content], {
+        type: 'application/x-httpd-php;charset=utf-8'
+      });
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+
+      a.href = url;
+      a.download = `${apiUuid}.php`;
+      a.click();
+
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('API file could not be created:', error);
+      this.toastr.error(`API file could not be created: ${String(error)}`, 'Settings');
+    }
   }
 
   ping() {
@@ -183,17 +213,28 @@ export class SettingsComponent implements OnInit {
   }
 
   protected uploadUI() {
-    this.apiService.setCongregation(this.congregation)
-    this.apiService.uploadUI().subscribe(() => {
-      this.toastr.success('UI files uploaded', 'Settings')
-    })
+    if (!this.applyCurrentRemoteSettings()) {
+      return;
+    }
+
+    this.apiService.uploadUI().subscribe({
+      next: () => this.toastr.success('UI files uploaded', 'Settings'),
+      error: error => {
+        console.error('Error uploading UI files:', error);
+        const file = error?.file ? ` (${error.file})` : '';
+        const cause = error?.cause ?? error;
+        const status = cause?.status ? `HTTP ${cause.status}` : '';
+        const serverMessage = cause?.error?.error ?? cause?.message ?? String(cause);
+        const details = [status, serverMessage].filter(Boolean).join(': ');
+        this.toastr.error(`UI file could not be uploaded${file}: ${details}`, 'Settings');
+      }
+    });
   }
 
   protected uploadAllTerritoriesOverview(): void {
-    this.congregation.apiUUID = this.apiUUID.value;
-    this.congregation.apiSECRET = this.apiSECRET.value;
-    this.congregation.rootURL = this.rootURL.value;
-    this.apiService.setCongregation(this.congregation);
+    if (!this.applyCurrentRemoteSettings()) {
+      return;
+    }
 
     forkJoin({
       mapDesigns: this.mapService.loadMapDesign(),
@@ -255,5 +296,19 @@ export class SettingsComponent implements OnInit {
         this.toastr.error('Local territories could not be loaded', 'Settings');
       }
     });
+  }
+
+  private applyCurrentRemoteSettings(): boolean {
+    if (!this.congregation) {
+      this.toastr.error('Settings have not finished loading', 'Settings');
+      return false;
+    }
+
+    this.congregation.name = this.congregationName.value ?? '';
+    this.congregation.apiUUID = this.apiUUID.value ?? '';
+    this.congregation.apiSECRET = this.apiSECRET.value ?? '';
+    this.congregation.rootURL = this.rootURL.value ?? '';
+    this.apiService.setCongregation(this.congregation);
+    return true;
   }
 }

@@ -16,8 +16,13 @@ function getFiles(dir, base = dir) {
 }
 
 const files = getFiles('public');
+const filesJson = JSON.stringify(files, null, 2);
 
 writeFileSync(
   'public/files.json',
-  JSON.stringify(files, null, 2)
+  filesJson
 );
+
+// The Rust sidecar and Tauri both serve dist/ui/browser as their web root.
+// Keep the upload manifest there as well as in Angular's public directory.
+writeFileSync('dist/ui/browser/files.json', filesJson);

@@ -10,6 +10,14 @@
     "core:default",
     "core:window:allow-is-fullscreen",
     "core:window:allow-set-fullscreen",
-    "allow-open-data-folder"
+    "allow-open-data-folder",
+    "allow-save-api-file",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        {"url": "https://www.google.com/maps/*"},
+        {"url": "https://earth.google.com/*"}
+      ]
+    }
   ]
 }

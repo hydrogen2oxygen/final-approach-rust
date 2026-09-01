@@ -60,6 +60,10 @@ import {
 } from './components/territory-details-dialog/territory-details-dialog.component';
 import {PreacherDetailsDialogComponent} from './components/preacher-details-dialog/preacher-details-dialog.component';
 import {DoNotVisitWarningDialogComponent} from './components/do-not-visit-warning-dialog/do-not-visit-warning-dialog.component';
+import {
+  RemoteOverviewAccess,
+  RemoteOverviewAccessDialogComponent
+} from './components/remote-overview-access-dialog/remote-overview-access-dialog.component';
 
 interface SearchResult {
   label: string;
@@ -786,6 +790,21 @@ export class AppComponent implements OnInit, OnDestroy {
 
   openGoogleTab(): void {
     const url = `https://www.google.com/maps/@${this.getCoordinates(this.map.getView().getCenter()).toString().split(',')[1]},${this.getCoordinates(this.map.getView().getCenter()).toString().split(',')[0]},${this.map.getView().getZoom()}z`;
+    void this.openExternalUrl(url);
+  }
+
+  private async openExternalUrl(url: string): Promise<void> {
+    if (this.isTauri) {
+      try {
+        const {openUrl} = await import('@tauri-apps/plugin-opener');
+        await openUrl(url);
+      } catch (error) {
+        console.error('Could not open the external URL:', error);
+        this.toastr.error(`The link could not be opened: ${String(error)}`);
+      }
+      return;
+    }
+
     window.open(url, '_blank');
   }
 
@@ -1720,6 +1739,21 @@ export class AppComponent implements OnInit, OnDestroy {
     });
   }
 
+  protected openRemoteOverviewAccess(): void {
+    const dialogRef = this.dialog.open(RemoteOverviewAccessDialogComponent, {
+      width: '30rem',
+      maxWidth: '90vw'
+    });
+
+    dialogRef.afterClosed().subscribe((access: RemoteOverviewAccess | undefined) => {
+      if (access) {
+        this.navigateToRemoteOverview(
+          this.createPreacherNameHashCode(access.preacherName, access.password)
+        );
+      }
+    });
+  }
+
   protected async openDataFolder(): Promise<void> {
     if (!this.isTauri) {
       return;
@@ -2258,7 +2292,7 @@ export class AppComponent implements OnInit, OnDestroy {
     const [lon, lat] = transform(center, 'EPSG:3857', 'EPSG:4326');
 
     const url = `https://earth.google.com/web/@${lat},${lon},1000a,0d,35y,0h,0t,0r`;
-    window.open(url, '_blank');
+    void this.openExternalUrl(url);
   }
 
   downloadSelectedAsGoogleEarthKml() {
@@ -2700,6 +2734,11 @@ export class AppComponent implements OnInit, OnDestroy {
           return;
         }
 
+        if (!congregation.territoryOverviewPassword) {
+          this.toastr.error('Synchronization failed because no territory overview password is configured.');
+          return;
+        }
+
         this.apiService.setCongregation(congregation);
 
         this.mapService.loadTerritories().subscribe({
@@ -2784,12 +2823,24 @@ export class AppComponent implements OnInit, OnDestroy {
                       overview.updatedAt = updatedAt;
 
                       return {
-                        fileName: this.createPreacherNameHashCode(preacher.name),
+                        fileName: this.createPreacherNameHashCode(
+                          preacher.name,
+                          congregation.territoryOverviewPassword
+                        ),
                         overview
                       };
                     });
+                    const currentOverviewFileNames = new Set(
+                      territoryOverviews.map(item => `${item.fileName}.json`)
+                    );
+                    const obsoleteOverviewFileNames = fileNames.filter(fileName =>
+                      /^-?\d+\.json$/.test(fileName) && !currentOverviewFileNames.has(fileName)
+                    );
                     const synchronizationRequests = [
                       ...obsoleteUuids.map(uuid => this.apiService.deleteJsonFile(uuid)),
+                      ...obsoleteOverviewFileNames.map(fileName =>
+                        this.apiService.deleteJsonFile(fileName.replace(/\.json$/, ''))
+                      ),
                       ...territoryUploads,
                       ...territoryOverviews.map(item => this.apiService.uploadJson(item.fileName, item.overview))
                     ];
@@ -2813,7 +2864,8 @@ export class AppComponent implements OnInit, OnDestroy {
                         });
 
                         this.toastr.success(
-                          `Synchronization complete. ${obsoleteUuids.length} remote territory file(s) deleted and ` +
+                          `Synchronization complete. ${obsoleteUuids.length} remote territory file(s) and ` +
+                          `${obsoleteOverviewFileNames.length} obsolete preacher overview(s) deleted; ` +
                           `${territoryUploads.length} territory map(s) and ` +
                           `${territoryOverviews.length} preacher overview(s) uploaded.`
                         );
@@ -2854,19 +2906,20 @@ export class AppComponent implements OnInit, OnDestroy {
     });
   }
 
-  private createPreacherNameHashCode(preacherName: string): string {
+  private createPreacherNameHashCode(preacherName: string, password: string): string {
     let hashCode = 0;
+    const saltedPreacherName = `${password}\u0000${preacherName}`;
 
-    for (let index = 0; index < preacherName.length; index++) {
-      hashCode = (Math.imul(31, hashCode) + preacherName.charCodeAt(index)) | 0;
+    for (let index = 0; index < saltedPreacherName.length; index++) {
+      hashCode = (Math.imul(31, hashCode) + saltedPreacherName.charCodeAt(index)) | 0;
     }
 
     return hashCode.toString();
   }
 
   protected copyRemoteTerritoryOverviewLink(preacher: Preacher): void {
-    if (!this.congregation?.rootURL || !preacher.name) {
-      this.toastr.error('The remote URL or preacher name is missing.');
+    if (!this.congregation?.rootURL || !preacher.name || !this.congregation.territoryOverviewPassword) {
+      this.toastr.error('The remote URL, preacher name or territory overview password is missing.');
       return;
     }
 
@@ -2874,7 +2927,10 @@ export class AppComponent implements OnInit, OnDestroy {
 
     try {
       remoteUrl = new URL(this.congregation.rootURL, window.location.origin);
-      remoteUrl.searchParams.set('id', this.createPreacherNameHashCode(preacher.name));
+      remoteUrl.searchParams.set(
+        'id',
+        this.createPreacherNameHashCode(preacher.name, this.congregation.territoryOverviewPassword)
+      );
     } catch (error) {
       console.error('Error creating remote territory overview URL:', error);
       this.toastr.error('The configured remote URL is invalid.');

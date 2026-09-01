@@ -1,6 +1,6 @@
 import {inject, Injectable} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
-import {BehaviorSubject, concatMap, from, map, Observable, of, switchMap, tap, toArray} from 'rxjs';
+import {BehaviorSubject, catchError, concatMap, from, map, Observable, of, switchMap, tap, throwError, toArray} from 'rxjs';
 import {Congregation} from '../domains/Congregation';
 import {TerritoryMap} from '../domains/MapDesign';
 
@@ -16,6 +16,7 @@ export class ApiService {
 
   private http = inject(HttpClient);
   private congregation: Congregation = undefined;
+  private readonly isTauri = Boolean((window as any).__TAURI_INTERNALS__);
 
   private uploadProgressSubject = new BehaviorSubject<number>(0);
   readonly uploadProgress$ = this.uploadProgressSubject.asObservable();
@@ -88,8 +89,8 @@ export class ApiService {
 
         return from(files).pipe(
           concatMap(file => {
-            const localUrl = '/' + file;
             const remoteName = file.substring('browser/'.length);
+            const localUrl = this.isTauri ? `/${remoteName}` : `/${file}`;
             const uploadUrl = this.apiUrl({action: 'upload-ui', name: remoteName});
 
             const fileRequest =
@@ -136,7 +137,8 @@ export class ApiService {
                 this.uploadProgressSubject.next(
                   Math.round(completed / files.length * 100)
                 );
-              })
+              }),
+              catchError(error => throwError(() => ({file: remoteName, cause: error})))
             );
           }),
           toArray(),

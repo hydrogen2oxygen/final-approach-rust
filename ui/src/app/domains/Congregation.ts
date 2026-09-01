@@ -24,6 +24,7 @@ export class Congregation {
   apiUUID: string = "";
   apiSECRET: string = "";
   rootURL: string = "";
+  territoryOverviewPassword: string = "";
 }
 
 export class ColorSettings {

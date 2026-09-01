@@ -25,6 +25,29 @@ fn open_data_folder(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn save_api_file(app: tauri::AppHandle, api_uuid: String, content: String) -> Result<String, String> {
+    if api_uuid.is_empty()
+        || !api_uuid
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || character == '-' || character == '_')
+    {
+        return Err("The API UUID contains invalid filename characters.".to_string());
+    }
+
+    let data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?
+        .join("data");
+    std::fs::create_dir_all(&data_dir).map_err(|error| error.to_string())?;
+
+    let file_path = data_dir.join(format!("{api_uuid}.php"));
+    std::fs::write(&file_path, content).map_err(|error| error.to_string())?;
+
+    Ok(file_path.to_string_lossy().into_owned())
+}
+
 fn reserve_free_port() -> std::io::Result<u16> {
     let listener = TcpListener::bind(("127.0.0.1", 0))?;
     Ok(listener.local_addr()?.port())
@@ -44,7 +67,7 @@ fn wait_for_backend(address: SocketAddr, timeout: Duration) -> bool {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![open_data_folder])
+        .invoke_handler(tauri::generate_handler![open_data_folder, save_api_file])
         .plugin(tauri_plugin_single_instance::init(|app, _arguments, _working_directory| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
@@ -52,6 +75,7 @@ pub fn run() {
                 let _ = window.set_focus();
             }
         }))
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .manage(BackendProcess(Mutex::new(None)))
         .setup(|app| {

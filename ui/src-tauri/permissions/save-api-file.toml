@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-save-api-file"
+description = "Allows the trusted local Final Approach UI to save the generated API file in its application data folder."
+commands.allow = ["save_api_file"]

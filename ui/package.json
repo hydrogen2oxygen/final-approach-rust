@@ -26,6 +26,7 @@
     "@angular/platform-browser-dynamic": "^20.1.0",
     "@angular/router": "^20.1.0",
     "@tauri-apps/api": "^2.8.0",
+    "@tauri-apps/plugin-opener": "^2.5.0",
     "fflate": "^0.8.3",
     "jspdf": "^4.2.1",
     "ngx-toastr": "^19.0.0",
