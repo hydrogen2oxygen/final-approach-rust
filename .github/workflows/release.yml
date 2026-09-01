@@ -17,9 +17,12 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
           cache-dependency-path: ui/package-lock.json
+
+      - name: Use project npm version
+        run: npm install --global npm@11.16.0
 
       - uses: dtolnay/rust-toolchain@stable
 
