@@ -1,0 +1,12 @@
+<h2 mat-dialog-title>New version {{ data.version }} available</h2>
+<mat-dialog-content>
+  @if (data.body) {
+    <div class="release-notes">{{ data.body }}</div>
+  } @else {
+    <p>This update contains improvements and fixes.</p>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" [mat-dialog-close]="false">Later</button>
+  <button mat-flat-button type="button" [mat-dialog-close]="true">Install update</button>
+</mat-dialog-actions>

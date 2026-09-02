@@ -1,0 +1,35 @@
+tbody tr td:first-child {
+  border-left: 6px solid transparent;
+}
+
+tbody tr.foreign-coverage-100 td:first-child {
+  border-left-color: #168447;
+}
+
+tbody tr.foreign-coverage-50 td:first-child {
+  border-left-color: #A8B820;
+}
+
+tbody tr.foreign-coverage-25 td:first-child {
+  border-left-color: #E0A800;
+}
+
+tbody tr.foreign-coverage-0 td:first-child {
+  border-left-color: #D64545;
+}
+
+tbody tr.foreign-coverage-100 td {
+  background: rgba(22, 132, 71, 0.05);
+}
+
+tbody tr.foreign-coverage-50 td {
+  background: rgba(168, 184, 32, 0.06);
+}
+
+tbody tr.foreign-coverage-25 td {
+  background: rgba(224, 168, 0, 0.06);
+}
+
+tbody tr.foreign-coverage-0 td {
+  background: rgba(214, 69, 69, 0.05);
+}

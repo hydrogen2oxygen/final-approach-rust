@@ -1,0 +1,30 @@
+<h2 mat-dialog-title>Open territory overview</h2>
+
+<mat-dialog-content>
+  <p>Enter the preacher name exactly as stored by the congregation and the territory overview password.</p>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Preacher name</mat-label>
+    <input matInput [formControl]="preacherName" (keydown.enter)="open()" autofocus>
+    @if (preacherName.hasError('required')) {
+      <mat-error>Preacher name is required.</mat-error>
+    }
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Password</mat-label>
+    <input matInput type="password" autocomplete="current-password" [formControl]="password"
+           (keydown.enter)="open()">
+    @if (password.hasError('required')) {
+      <mat-error>Password is required.</mat-error>
+    }
+  </mat-form-field>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>Cancel</button>
+  <button mat-flat-button color="primary" (click)="open()">
+    <mat-icon>open_in_new</mat-icon>
+    Open
+  </button>
+</mat-dialog-actions>

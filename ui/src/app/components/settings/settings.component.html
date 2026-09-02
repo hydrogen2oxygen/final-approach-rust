@@ -1,0 +1,117 @@
+<h3 mat-dialog-title>Settings</h3>
+<mat-dialog-content>
+    @if (persona === Personas.DESIGNER || persona === Personas.MANAGER) {
+      <div class="input-group input-group-sm mb-3">
+        <span class="input-group-text" id="congregationName">Congregation Name</span>
+        <input type="text" class="form-control" [formControl]="congregationName">
+      </div>
+
+      <!-- TODO notes in extra dialog -->
+      <div class="mb-3">
+        <label for="notes" class="form-label">Notes</label>
+        <textarea id="notes" class="form-control form-control-sm" placeholder="Notes" [formControl]="note"></textarea>
+      </div>
+
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" value="" id="includeForeignLanguageGroup"
+               [formControl]="includeForeignLanguageGroup">
+        <label class="form-check-label" for="includeForeignLanguageGroup">
+          Include Foreign Language Group
+        </label>
+      </div>
+
+      @if (includeForeignLanguageGroup.value)  {
+      <div class="input-group input-group-sm mb-3">
+        <span class="input-group-text" id="foreignLanguageGroupName">Foreign Language Group Name</span>
+        <input type="text" class="form-control" [formControl]="foreignLanguageGroupName">
+      </div>
+      }
+
+      <hr>
+      <div style="display: flex; gap: 2rem;">
+        <div class="col">
+          <h6>Default Map Colors</h6>
+          <table>
+            <tr>
+              <td>Fill Color</td>
+              <td style="padding-left: 1rem"><input type="color" class="form-control form-control-color" [formControl]="defaultFillColor"></td>
+            </tr>
+            <tr>
+              <td>Stroke Color</td>
+              <td style="padding-left: 1rem"><input type="color" class="form-control form-control-color" [formControl]="defaultStrokeColor"></td>
+            </tr>
+            <tr>
+              <td>Text Fill Color</td>
+              <td style="padding-left: 1rem"><input type="color" class="form-control form-control-color" [formControl]="defaultTextFillColor"></td>
+            </tr>
+            <tr>
+              <td>Text Stroke Color</td>
+              <td style="padding-left: 1rem"><input type="color" class="form-control form-control-color" [formControl]="defaultTextStrokeColor"></td>
+            </tr>
+          </table>
+        </div>
+        @if (includeForeignLanguageGroup.value)  {
+        <div class="col">
+          <h6>Foreign Map Colors</h6>
+          <table>
+            <tr>
+              <td>Fill Color</td>
+              <td style="padding-left: 1rem"><input type="color" class="form-control form-control-color" [formControl]="foreignFillColor"></td>
+            </tr>
+            <tr>
+              <td>Stroke Color</td>
+              <td style="padding-left: 1rem"><input type="color" class="form-control form-control-color" [formControl]="foreignStrokeColor"></td>
+            </tr>
+            <tr>
+              <td>Text Fill Color</td>
+              <td style="padding-left: 1rem"><input type="color" class="form-control form-control-color" [formControl]="foreignTextFillColor"></td>
+            </tr>
+            <tr>
+              <td>Text Stroke Color</td>
+              <td style="padding-left: 1rem"><input type="color" class="form-control form-control-color" [formControl]="foreignTextStrokeColor"></td>
+            </tr>
+          </table>
+        </div>
+        }
+      </div>
+    }
+  <hr>
+  <div class="input-group input-group-sm">
+    <span class="input-group-text" id="apiUUID">API UUID</span>
+    <input type="text" class="form-control" [formControl]="apiUUID">
+    <button class="btn btn-danger" (click)="generateUUID()">Generate</button>
+    <button class="btn btn-primary" (click)="downloadApi()">Download API</button>
+  </div>
+  <div class="input-group input-group-sm" style="margin-top: 0.5rem">
+    <span class="input-group-text" id="apiSECRET">API SECRET</span>
+    <input type="text" class="form-control" [formControl]="apiSECRET">
+    <button class="btn btn-danger" (click)="generateSECRET()">Generate</button>
+  </div>
+  <div class="input-group input-group-sm" style="margin-top: 0.5rem">
+    <span class="input-group-text" id="rootURL">ROOT URL</span>
+    <input type="text" class="form-control" [formControl]="rootURL">
+    <button class="btn btn-primary" (click)="ping()">PING</button>
+  </div>
+  <div class="input-group input-group-sm" style="margin-top: 0.5rem">
+    <span class="input-group-text" id="territoryOverviewPassword">TERRITORY OVERVIEW PASSWORD</span>
+    <input type="password" class="form-control" autocomplete="new-password"
+           [formControl]="territoryOverviewPassword">
+  </div>
+  <hr>
+  @if (isTauri) {
+    <section class="update-settings">
+      <h6>Application updates</h6>
+      <button class="btn btn-secondary" type="button"
+              [disabled]="updateService.isChecking || updateService.isInstalling"
+              (click)="checkForUpdates()">
+        {{ updateService.isChecking ? 'Checking for updates...' : 'Check for updates' }}
+      </button>
+    </section>
+    <hr>
+  }
+  <button class="btn btn-success" (click)="save()">Save</button>
+  <button class="btn btn-primary" (click)="uploadUI()" style="margin-left: 0.5rem">Upload UI</button>
+  <button class="btn btn-primary" (click)="uploadAllTerritoriesOverview()" style="margin-left: 0.5rem">
+    Upload All Territories
+  </button>
+</mat-dialog-content>

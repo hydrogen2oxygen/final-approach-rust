@@ -1,0 +1,156 @@
+:host {
+  display: block;
+  color: #25364A;
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 56px;
+  gap: 16px;
+  padding: 10px 18px;
+  background: #08294A;
+  color: #FFFFFF;
+}
+
+h2 {
+  margin: 0;
+  padding: 0;
+  color: #FFFFFF;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.close-button {
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 7px;
+  background: transparent;
+  color: #FFFFFF;
+  cursor: pointer;
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+mat-dialog-content {
+  max-height: min(70vh, 700px);
+  padding: 18px 24px !important;
+  background: #FFFFFF;
+}
+
+.table-container {
+  overflow: visible;
+  border: 1px solid #E1E6EB;
+  border-radius: 8px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #FFFFFF;
+}
+
+th,
+td {
+  padding: 10px 12px;
+  border-right: 0;
+  border-bottom: 1px solid #E1E6EB;
+  color: #25364A;
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+th:last-child,
+td:last-child {
+  border-right: 0;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+th {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  background: #F7F9FB;
+  color: #526273;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.actions-cell {
+  display: flex;
+  gap: 6px;
+}
+
+.action-button {
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: #FFFFFF;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.delete-button {
+  border-color: #F0B8B8;
+  background: transparent;
+  color: #D64545;
+}
+
+.delete-button:hover {
+  border-color: #E99D9D;
+  background: #FFF1F1;
+  color: #B93434;
+}
+
+.switch-button {
+  border-color: #D9B94F;
+  background: #F4D66D;
+  color: #5E4300;
+}
+
+.switch-button:hover {
+  border-color: #C9A62F;
+  background: #EAC64E;
+  color: #483300;
+}
+
+.primary-button {
+  background: #1769AA;
+}
+
+.primary-button:hover {
+  background: #14598F;
+}
+
+.preacher-button {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.territory-count {
+  color: #25364A;
+  font-weight: 700;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .dialog-header,
+  mat-dialog-content {
+    padding-right: 14px !important;
+    padding-left: 14px !important;
+  }
+
+  th,
+  td {
+    padding: 8px;
+  }
+}
