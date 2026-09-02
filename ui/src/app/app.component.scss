@@ -260,6 +260,28 @@
   background: #1C9853;
 }
 
+.territory-url-import {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  overflow: hidden;
+  border-radius: 7px;
+  background: #FFFFFF;
+}
+
+.territory-url-import input {
+  width: 15rem;
+  min-width: 8rem;
+  height: 100%;
+  padding: 0 10px;
+  border: 0;
+  outline: none;
+}
+
+.territory-url-import .icon-button {
+  border-radius: 0;
+}
+
 .global-search {
   width: 18rem;
   min-width: 12rem;

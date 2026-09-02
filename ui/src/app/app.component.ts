@@ -26,7 +26,7 @@ import {DocumentationComponent} from './components/documentation/documentation.c
 import {PersonaComponent} from './components/persona/persona.component';
 import {Coordinate} from 'ol/coordinate';
 import {toLonLat} from 'ol/proj';
-import {createEmpty, extend, isEmpty} from 'ol/extent';
+import {createEmpty, extend, intersects, isEmpty} from 'ol/extent';
 import {
   Congregation,
   DoNotVisit,
@@ -44,7 +44,7 @@ import {SettingsComponent} from './components/settings/settings.component';
 import {getCenter} from 'ol/extent';
 import {transform} from 'ol/proj';
 import {ApiService} from './services/api.service';
-import {concatMap, from, tap, toArray} from 'rxjs';
+import {catchError, concatMap, from, of, tap, toArray} from 'rxjs';
 import {RemoteOverviewHistoryDialogComponent} from './components/remote-overview-history-dialog/remote-overview-history-dialog.component';
 import {
   RemoteOverviewHistoryEntry,
@@ -101,6 +101,8 @@ export class AppComponent implements OnInit, OnDestroy {
   doNotVisitDoorbell = new FormControl('');
   doNotVisitName = new FormControl('');
   addAsForeignLanguageTerritory = new FormControl(false);
+  territoryImportRootUrl = new FormControl('', {nonNullable: true});
+  importingTerritories: boolean = false;
   editingReturnDate: RegistryEntry | null = null;
 
   congregation: Congregation | undefined;
@@ -968,6 +970,165 @@ export class AppComponent implements OnInit, OnDestroy {
         console.error('Error loading map design:', error);
       }
     });
+  }
+
+  importTerritoryMapsFromUrl(): void {
+    const enteredRootUrl = this.territoryImportRootUrl.value.trim();
+
+    if (!enteredRootUrl) {
+      this.toastr.warning('Enter the root URL of the website to import from.');
+      return;
+    }
+
+    let rootUrl: string;
+    try {
+      const parsedRootUrl = new URL(enteredRootUrl);
+      if (parsedRootUrl.protocol !== 'http:' && parsedRootUrl.protocol !== 'https:') {
+        throw new Error('Unsupported URL protocol');
+      }
+      parsedRootUrl.search = '';
+      parsedRootUrl.hash = '';
+      rootUrl = parsedRootUrl.toString().replace(/\/+$/, '');
+    } catch {
+      this.toastr.error('Enter a valid root URL, including http:// or https://.');
+      return;
+    }
+
+    this.importingTerritories = true;
+    this.mapService.loadTerritoryOverviewFromRootUrl(rootUrl).subscribe({
+      next: overview => this.saveImportedTerritoryMaps(rootUrl, overview),
+      error: error => {
+        this.importingTerritories = false;
+        console.error('Error loading territory overview for import:', error);
+        this.toastr.error(`The territory overview could not be loaded from ${rootUrl}.`);
+      }
+    });
+  }
+
+  private saveImportedTerritoryMaps(rootUrl: string, overview: TerritoryOverview): void {
+    if (!Array.isArray(overview?.territoryList)) {
+      this.importingTerritories = false;
+      this.toastr.error(`The URL ${rootUrl} does not contain a valid territory overview.`);
+      return;
+    }
+
+    const occupiedGeometries = this.source.getFeatures()
+      .map(feature => feature.getGeometry())
+      .filter((geometry): geometry is Geometry => Boolean(geometry));
+    const territoryMapsToImport: TerritoryMap[] = [];
+    let overlappingTerritories = 0;
+    let invalidTerritories = 0;
+
+    overview.territoryList.forEach(territoryMap => {
+      try {
+        const geometry = this.wktFormat.readGeometry(territoryMap.simpleFeatureData);
+        const overlaps = occupiedGeometries.some(existingGeometry =>
+          this.geometriesOverlap(existingGeometry, geometry));
+
+        if (overlaps) {
+          overlappingTerritories++;
+          return;
+        }
+
+        occupiedGeometries.push(geometry);
+        territoryMapsToImport.push(territoryMap);
+      } catch (error) {
+        invalidTerritories++;
+        console.error('Invalid territory map in imported overview:', territoryMap, error);
+      }
+    });
+
+    from(territoryMapsToImport).pipe(
+      concatMap(territoryMap => this.mapService.saveMapDesign(territoryMap).pipe(
+        tap(() => {
+          this.loadTerritoryMap(territoryMap);
+          this.territoryNumbers.push(territoryMap.territoryNumber);
+          this.territoryNames.add(territoryMap.territoryName);
+        }),
+        catchError(error => {
+          console.error('Error saving imported territory map:', territoryMap, error);
+          return of(null);
+        })
+      )),
+      toArray()
+    ).subscribe(results => {
+      this.importingTerritories = false;
+      const importedTerritories = results.filter(result => result !== null).length;
+      const failedTerritories = territoryMapsToImport.length - importedTerritories + invalidTerritories;
+      const summary = `From ${rootUrl}, ${importedTerritories} territories were imported. ` +
+        `${overlappingTerritories} overlapping territories were ignored because they occupied the same area.`;
+
+      if (failedTerritories > 0) {
+        this.toastr.warning(`${summary} ${failedTerritories} territories could not be imported.`);
+      } else {
+        this.toastr.success(summary);
+      }
+    });
+  }
+
+  private geometriesOverlap(firstGeometry: Geometry, secondGeometry: Geometry): boolean {
+    if (!intersects(firstGeometry.getExtent(), secondGeometry.getExtent())) {
+      return false;
+    }
+
+    const firstPolygons = this.getPolygons(firstGeometry);
+    const secondPolygons = this.getPolygons(secondGeometry);
+
+    return firstPolygons.some(firstPolygon => secondPolygons.some(secondPolygon =>
+      this.polygonsOverlap(firstPolygon, secondPolygon)));
+  }
+
+  private getPolygons(geometry: Geometry): Polygon[] {
+    if (geometry instanceof Polygon) {
+      return [geometry];
+    }
+
+    if (geometry instanceof MultiPolygon) {
+      return geometry.getPolygons();
+    }
+
+    return [];
+  }
+
+  private polygonsOverlap(firstPolygon: Polygon, secondPolygon: Polygon): boolean {
+    if (secondPolygon.intersectsCoordinate(firstPolygon.getInteriorPoint().getCoordinates()) ||
+      firstPolygon.intersectsCoordinate(secondPolygon.getInteriorPoint().getCoordinates())) {
+      return true;
+    }
+
+    const firstRings = firstPolygon.getCoordinates();
+    const secondRings = secondPolygon.getCoordinates();
+
+    return firstRings.some(firstRing => secondRings.some(secondRing =>
+      this.ringsHaveProperIntersection(firstRing, secondRing)));
+  }
+
+  private ringsHaveProperIntersection(firstRing: number[][], secondRing: number[][]): boolean {
+    for (let firstIndex = 1; firstIndex < firstRing.length; firstIndex++) {
+      for (let secondIndex = 1; secondIndex < secondRing.length; secondIndex++) {
+        if (this.segmentsHaveProperIntersection(
+          firstRing[firstIndex - 1],
+          firstRing[firstIndex],
+          secondRing[secondIndex - 1],
+          secondRing[secondIndex])) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  private segmentsHaveProperIntersection(a: number[], b: number[], c: number[], d: number[]): boolean {
+    const orientation = (start: number[], end: number[], point: number[]): number =>
+      (end[0] - start[0]) * (point[1] - start[1]) -
+      (end[1] - start[1]) * (point[0] - start[0]);
+    const firstSide = orientation(a, b, c);
+    const secondSide = orientation(a, b, d);
+    const thirdSide = orientation(c, d, a);
+    const fourthSide = orientation(c, d, b);
+
+    return firstSide * secondSide < 0 && thirdSide * fourthSide < 0;
   }
 
   /**

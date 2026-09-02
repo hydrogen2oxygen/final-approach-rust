@@ -99,6 +99,25 @@
         <mat-icon>home</mat-icon>
       </button>
 
+      @if (isLocalhost && isTauri) {
+        <div class="territory-url-import">
+          <input
+            type="url"
+            aria-label="Root URL for territory import"
+            placeholder="https://example.org"
+            [formControl]="territoryImportRootUrl"
+            (keyup.enter)="importTerritoryMapsFromUrl()">
+          <button
+            class="icon-button icon-primary"
+            title="Import territories from URL"
+            [disabled]="importingTerritories"
+            (click)="importTerritoryMapsFromUrl()">
+            <mat-icon>{{ importingTerritories ? 'hourglass_top' : 'cloud_download' }}</mat-icon>
+            <b>IMPORT</b>
+          </button>
+        </div>
+      }
+
       @if (interaction) {
         <button class="icon-button icon-primary" (click)="removeInteraction()" title="Stop Editing (ESC)">
           <mat-icon>stop_circle</mat-icon>

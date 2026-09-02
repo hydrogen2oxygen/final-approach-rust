@@ -3,7 +3,7 @@ import { environment } from '../../environments/environment';
 import { Observable } from 'rxjs';
 import {HttpClient} from '@angular/common/http';
 import {TerritoryMap} from '../domains/MapDesign';
-import {Congregation, Territory} from '../domains/Congregation';
+import {Congregation, Territory, TerritoryOverview} from '../domains/Congregation';
 
 @Injectable({
   providedIn: 'root'
@@ -71,6 +71,11 @@ export class MapService {
     return this.http.get<T>(`assets/data/${encodeURIComponent(id)}.json`, {
       params: {v: cacheBuster}
     });
+  }
+
+  loadTerritoryOverviewFromRootUrl(rootUrl: string): Observable<TerritoryOverview> {
+    const importUrl = environment.apiBaseUrl.replace(/\/data$/, '/import/territory-overview');
+    return this.http.post<TerritoryOverview>(importUrl, {rootUrl});
   }
 
   // TERRITORY

@@ -1,4 +1,7 @@
-#![cfg_attr(all(windows, feature = "desktop-sidecar"), windows_subsystem = "windows")]
+#![cfg_attr(
+    all(windows, feature = "desktop-sidecar"),
+    windows_subsystem = "windows"
+)]
 
 use actix_cors::Cors;
 use actix_web::http::header;
@@ -8,7 +11,9 @@ use mime_guess::from_path;
 use rust_embed::RustEmbed;
 use serde_json::Value;
 use std::env;
+use std::net::IpAddr;
 use std::path::PathBuf;
+use std::time::Duration;
 
 struct AppState {
     data_dir: PathBuf,
@@ -23,7 +28,7 @@ struct Asset;
 */
 fn allowed_data_path(path: &str) -> Option<&'static str> {
     match path {
-        "mapDesigns" => Some("mapDesigns"), // all map designs, polygons
+        "mapDesigns" => Some("mapDesigns"),   // all map designs, polygons
         "territories" => Some("territories"), // all territory to assignee and registry relations
         "congregation" => Some("congregation"), // settings, assignees, notes and so on
         _ => None,
@@ -36,12 +41,13 @@ fn allowed_data_path(path: &str) -> Option<&'static str> {
 fn is_safe_id(id: &str) -> bool {
     !id.is_empty()
         && id.len() <= 80
-        && id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        && id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
 #[get("/{filename:.*}")]
 async fn serve_file(path: web::Path<String>) -> impl Responder {
-
     let filename = path.into_inner();
     let path = if filename.is_empty() {
         "index.html"
@@ -70,13 +76,127 @@ async fn ping() -> impl Responder {
     HttpResponse::Ok().body("pong")
 }
 
+#[post("/api/import/territory-overview")]
+async fn import_territory_overview(body: String) -> impl Responder {
+    let root_url = match serde_json::from_str::<Value>(&body).ok().and_then(|value| {
+        value
+            .get("rootUrl")
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+    }) {
+        Some(root_url) => root_url,
+        None => return HttpResponse::BadRequest().body("Missing rootUrl"),
+    };
+
+    let mut overview_url = match reqwest::Url::parse(&root_url) {
+        Ok(url) if url.scheme() == "http" || url.scheme() == "https" => url,
+        _ => return HttpResponse::BadRequest().body("Invalid rootUrl"),
+    };
+
+    if !is_allowed_import_host(&overview_url) {
+        return HttpResponse::BadRequest().body("Local and private hosts are not allowed");
+    }
+
+    let root_path = overview_url.path().trim_end_matches('/').to_owned();
+    overview_url.set_path(&format!("{}/assets/data/overview.json", root_path));
+    overview_url.set_query(None);
+    overview_url.set_fragment(None);
+
+    let client = match reqwest::Client::builder()
+        .timeout(Duration::from_secs(20))
+        .build()
+    {
+        Ok(client) => client,
+        Err(error) => {
+            error!("Failed to create HTTP client: {}", error);
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+
+    let response = match client.get(overview_url.clone()).send().await {
+        Ok(response) => response,
+        Err(error) => {
+            warn!(
+                "Failed to load territory overview from {}: {}",
+                overview_url, error
+            );
+            return HttpResponse::BadGateway()
+                .body("The remote territory overview could not be loaded");
+        }
+    };
+
+    if !response.status().is_success() {
+        return HttpResponse::BadGateway().body(format!(
+            "The remote server returned status {}",
+            response.status()
+        ));
+    }
+
+    const MAX_OVERVIEW_SIZE: u64 = 10 * 1024 * 1024;
+    if response
+        .content_length()
+        .is_some_and(|length| length > MAX_OVERVIEW_SIZE)
+    {
+        return HttpResponse::PayloadTooLarge().body("The territory overview is too large");
+    }
+
+    let content = match response.bytes().await {
+        Ok(content) if content.len() as u64 <= MAX_OVERVIEW_SIZE => content,
+        Ok(_) => {
+            return HttpResponse::PayloadTooLarge().body("The territory overview is too large")
+        }
+        Err(error) => {
+            warn!(
+                "Failed to read territory overview from {}: {}",
+                overview_url, error
+            );
+            return HttpResponse::BadGateway()
+                .body("The remote territory overview could not be read");
+        }
+    };
+
+    if serde_json::from_slice::<Value>(&content).is_err() {
+        return HttpResponse::BadGateway().body("The remote territory overview is not valid JSON");
+    }
+
+    HttpResponse::Ok()
+        .content_type("application/json")
+        .body(content)
+}
+
+fn is_allowed_import_host(url: &reqwest::Url) -> bool {
+    let host = match url.host_str() {
+        Some(host) => host,
+        None => return false,
+    };
+
+    if host.eq_ignore_ascii_case("localhost") {
+        return false;
+    }
+
+    match host.parse::<IpAddr>() {
+        Ok(IpAddr::V4(address)) => {
+            !address.is_private()
+                && !address.is_loopback()
+                && !address.is_link_local()
+                && !address.is_unspecified()
+        }
+        Ok(IpAddr::V6(address)) => {
+            !address.is_loopback()
+                && !address.is_unique_local()
+                && !address.is_unicast_link_local()
+                && !address.is_unspecified()
+        }
+        Err(_) => true,
+    }
+}
+
 #[post("/api/data/{path}/{id}")]
 async fn save(
-    request_path: web::Path<(String,String)>,
+    request_path: web::Path<(String, String)>,
     body: String,
     state: web::Data<AppState>,
 ) -> impl Responder {
-
     let (path, id) = request_path.into_inner();
     info!("Received data: {}", body);
 
@@ -145,7 +265,7 @@ async fn load_all(request_path: web::Path<String>, state: web::Data<AppState>) -
 
 #[delete("/api/data/{path}/{id}")]
 async fn delete(
-    request_path: web::Path<(String,String)>,
+    request_path: web::Path<(String, String)>,
     state: web::Data<AppState>,
 ) -> impl Responder {
     let (path, id) = request_path.into_inner();
@@ -169,7 +289,6 @@ async fn delete(
         HttpResponse::NotFound().json(serde_json::json!({"status": "not found"}))
     }
 }
-
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -212,6 +331,7 @@ async fn main() -> std::io::Result<()> {
                     .max_age(3600), // cache preflight for 1h
             )
             .service(ping)
+            .service(import_territory_overview)
             .service(save)
             .service(load_all)
             .service(delete)
