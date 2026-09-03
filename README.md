@@ -5,15 +5,13 @@
 </p>
 
 <p align="center">
-  <strong>Territory design and management for congregations</strong><br>
-  Create, organize, visualize and print territories on an interactive map.
+  <strong>Map design, assignment tracking and sharing for congregation territories</strong><br>
+  Draw territories, manage assignments and publish maps from one application.
 </p>
 
 ---
 
-Final Approach is a desktop application for designing and managing congregation territories.
-
-It provides a map-based interface for defining territory boundaries, organizing territory data and preparing maps for practical use.
+Final Approach is a Windows desktop application for congregation territory work. It combines an OpenStreetMap-based map editor with territory assignment records and an optional PHP-based publishing workflow for people who need to view their maps remotely.
 
 ### Download
 
@@ -25,34 +23,44 @@ Windows releases currently include both an `.exe` setup and an `.msi` installer.
 
 ### What you can do
 
-- Design territories directly on an interactive map
-- Draw, edit and organize territory boundaries
-- Define colors and map appearance
-- Save different map designs
-- Create and edit territory definitions
-- Print territory maps
-- Export map data for backup or further use
-- Work locally without requiring an external server
+- Draw, edit and delete territory polygons on an interactive OpenStreetMap
+- Attach a territory number and name to a polygon, including foreign-language territories and coverage status
+- Import a KML file and export the selected territory as KML for Google Earth
+- Maintain publishers, groups, assignments, returns and territory history
+- Record and flag "do not visit" entries
+- Search for territories and publishers
+- Export a selected map as PDF, place four selected maps on one PDF, and generate a PDF containing territory QR codes
+- Export the S-13 territory assignment record as PDF and publishers/territories as an Excel-compatible `.xlsx` file
+- Use separate Designer, Manager, Publisher and Group Leader views
+- Store and use all management data locally without a database server
+- Optionally publish the web UI, territory maps and password-protected territory overviews to a PHP-capable web server
+- View published maps on a phone or browser, share territory links and show the current GPS position
 
 ### Basic workflow
 
-1. Open Final Approach.
-2. Design the congregation map and define the territory boundaries.
-3. Save the map design.
-4. Create or edit the individual territory definitions.
-5. Print or export the territories when needed.
+1. In **Designer** mode, set the home map position and draw the territory polygons.
+2. Select each polygon, enter its territory number and name, and save it as that territory's map.
+3. In **Manager** mode, maintain publishers and assign, return or register territories.
+4. Print maps and records or export KML, QR codes and spreadsheet data as needed.
+5. If remote access is configured, synchronize changes to the PHP endpoint and share the generated territory or overview links.
 
-Map designs contain the territory geometry, colors and related display settings. Individual territory definitions are stored separately so that map layout and territory information can be managed independently.
+The polygon/map data and the management record for a territory are stored separately but linked by the territory number. The congregation record contains publishers, groups, colors and remote-server settings.
 
 ### Data
 
-Final Approach stores its application data locally.
+Final Approach stores management data as JSON files. The desktop application places them in its application data directory, separated into:
 
-The desktop version uses the application's data directory for settings, territories and map designs. This keeps the program self-contained and avoids requiring a separate database server.
+```text
+mapDesigns/   # one saved map per territory
+territories/  # territory details and assignment history
+congregation/ # congregation, publisher and configuration data
+```
+
+The saved home position and zoom level are browser/WebView-local settings. Remote publication is optional and requires a PHP-capable web server configured in the application settings.
 
 ### Updates
 
-The Tauri desktop application supports release-based updates through GitHub. New versions are published on the project's **[Releases page](https://github.com/hydrogen2oxygen/final-approach-rust/releases)**.
+The Tauri desktop application can check for signed updates published through GitHub Releases. New versions are available on the project's **[Releases page](https://github.com/hydrogen2oxygen/final-approach-rust/releases)**.
 
 ---
 
@@ -106,31 +114,11 @@ ui/src-tauri/target/release/bundle
 
 ### Application structure
 
-The application is intentionally centered around a single map workspace. Most secondary functions are opened as dialogs so that the user remains in the territory context while working.
+The Angular UI is embedded in the Rust executable. Actix Web serves that UI and a local JSON API on `127.0.0.1`; the Tauri wrapper starts this executable as a sidecar on an available port and supplies the application data directory.
 
-A traditional standalone build uses a structure similar to:
+When the Rust executable is started directly without a data-directory argument, it uses a `data` directory next to the executable. It creates `mapDesigns`, `territories` and `congregation` below that directory. The Tauri build uses the operating system's application data location instead.
 
-```text
-finalApproach.exe
-data/
-  settings.json
-  territories/
-  mapdesign/
-  public/
-    index.html
-    ...
-```
-
-The Tauri desktop build stores application data in the user's Tauri application data directory instead.
-
-### Map design workflow
-
-1. Design the map.
-2. Save the map design as JSON.
-3. Create and maintain the individual territory definitions.
-4. Export or print the finished map.
-
-Map design files contain territory definitions, colors and other presentation settings. Temporary map designs may be stored separately with timestamps before the final version is saved.
+The optional remote deployment is different from the local Rust API: the application can generate a configured PHP endpoint and upload the compiled web UI and JSON map data to it.
 
 ### Developer notes
 
@@ -138,7 +126,7 @@ Useful commands:
 
 ```shell
 cargo fetch
-ng generate component info-dialog
+npm --prefix ui test
 ```
 
 References:
