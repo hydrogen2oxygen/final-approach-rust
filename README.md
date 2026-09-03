@@ -11,8 +11,6 @@
 
 ---
 
-## For users
-
 Final Approach is a desktop application for designing and managing congregation territories.
 
 It provides a map-based interface for defining territory boundaries, organizing territory data and preparing maps for practical use.
