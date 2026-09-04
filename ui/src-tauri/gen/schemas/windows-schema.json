@@ -567,6 +567,12 @@
           "markdownDescription": "Allows the trusted local Final Approach UI to save the generated API file in its application data folder."
         },
         {
+          "description": "Allows the trusted local Final Approach UI to save generated export files in the user's download folder.",
+          "type": "string",
+          "const": "allow-save-export-file",
+          "markdownDescription": "Allows the trusted local Final Approach UI to save generated export files in the user's download folder."
+        },
+        {
           "description": "Default core plugins set.\n#### This default permission set includes:\n\n- `core:path:default`\n- `core:event:default`\n- `core:window:default`\n- `core:webview:default`\n- `core:app:default`\n- `core:image:default`\n- `core:resources:default`\n- `core:menu:default`\n- `core:tray:default`",
           "type": "string",
           "const": "core:default",

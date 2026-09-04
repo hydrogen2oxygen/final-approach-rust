@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-save-export-file"
+description = "Allows the trusted local Final Approach UI to save generated export files in the user's download folder."
+commands.allow = ["save_export_file"]

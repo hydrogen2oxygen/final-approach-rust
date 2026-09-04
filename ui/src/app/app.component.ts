@@ -70,6 +70,7 @@ import {
   RemoteOverviewAccessDialogComponent
 } from './components/remote-overview-access-dialog/remote-overview-access-dialog.component';
 import {PushNotificationService} from './services/push-notification.service';
+import {FileExportService} from './services/file-export.service';
 
 interface SearchResult {
   label: string;
@@ -177,7 +178,8 @@ export class AppComponent implements OnInit, OnDestroy {
     private apiService: ApiService,
     private remoteOverviewHistoryService: RemoteOverviewHistoryService,
     private updateService: UpdateService,
-    private pushNotificationService: PushNotificationService
+    private pushNotificationService: PushNotificationService,
+    private fileExportService: FileExportService
   ) {
   }
 
@@ -1683,7 +1685,7 @@ export class AppComponent implements OnInit, OnDestroy {
         );
 
         const filename = `${title.replace(/[^\wäöüÄÖÜß-]+/g, '_')}.pdf`;
-        pdf.save(filename);
+        this.fileExportService.save(pdf.output('blob'), filename);
 
       } finally {
         this.source.getFeatures().forEach(feature => {
@@ -1922,7 +1924,7 @@ export class AppComponent implements OnInit, OnDestroy {
           ? `${renderedItems[0].title.replace(/[^\wäöüÄÖÜß-]+/g, '_')}.pdf`
           : `territories_4up.pdf`;
 
-      pdf.save(filename);
+      this.fileExportService.save(pdf.output('blob'), filename);
 
     } catch (error: any) {
       console.error(error);
@@ -2147,7 +2149,7 @@ export class AppComponent implements OnInit, OnDestroy {
     });
 
     drawFooter();
-    pdf.save(`S-13_${serviceYear}.pdf`);
+    this.fileExportService.save(pdf.output('blob'), `S-13_${serviceYear}.pdf`);
   }
 
   protected exportExcelAsXlsx(): void {
@@ -2247,12 +2249,7 @@ export class AppComponent implements OnInit, OnDestroy {
     };
     const xlsx = zipSync(files, {level: 6});
     const blob = new Blob([xlsx.slice().buffer], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `finalApproach_${new Date().toISOString().slice(0, 10)}.xlsx`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+    this.fileExportService.save(blob, `finalApproach_${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
   protected exportTerritoryQrCodesAsPdf(): void {
@@ -2389,7 +2386,7 @@ export class AppComponent implements OnInit, OnDestroy {
       pdf.text(territoryNameLines, cellX + cellWidth / 2, qrCodeY + qrCodeSize + 6, {align: 'center'});
     });
 
-    pdf.save('territory_qr_codes.pdf');
+    this.fileExportService.save(pdf.output('blob'), 'territory_qr_codes.pdf');
   }
 
   private clearSelectedFeatures(): void {
@@ -2529,16 +2526,7 @@ export class AppComponent implements OnInit, OnDestroy {
       type: 'application/vnd.google-earth.kml+xml;charset=utf-8'
     });
 
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'gebiete.kml';
-    document.body.appendChild(a);
-    a.click();
-
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    this.fileExportService.save(blob, 'gebiete.kml');
   }
 
   private createGoogleEarthKml(features: Feature[], documentName: string): string {

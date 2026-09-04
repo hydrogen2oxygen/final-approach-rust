@@ -14,6 +14,7 @@
     "process:allow-restart",
     "allow-open-data-folder",
     "allow-save-api-file",
+    "allow-save-export-file",
     {
       "identifier": "opener:allow-open-url",
       "allow": [
