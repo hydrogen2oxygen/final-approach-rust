@@ -29,6 +29,7 @@ import {toLonLat} from 'ol/proj';
 import {createEmpty, extend, intersects, isEmpty} from 'ol/extent';
 import {
   Congregation,
+  ColorSettings,
   DoNotVisit,
   Preacher,
   RegistryEntry,
@@ -155,6 +156,7 @@ export class AppComponent implements OnInit, OnDestroy {
   locationTracking: boolean = false;
   isAllTerritoriesOverview: boolean = false;
   isSubscribedToCurrentOverview: boolean = false;
+  canViewAllTerritoriesOverview: boolean = false;
 
   private geolocation: Geolocation | undefined;
   private locationLayer: VectorLayer | undefined;
@@ -163,6 +165,8 @@ export class AppComponent implements OnInit, OnDestroy {
   private locationCentered: boolean = false;
   private readonly serviceGroupSaveQueue = new Subject<string>();
   private serviceGroupSaveSubscription: Subscription | undefined;
+  private remotePersonalTerritoryList: TerritoryMap[] = [];
+  private remoteAllTerritoryList: TerritoryMap[] = [];
 
   isLocalhost =
     window.location.hostname === 'localhost' ||
@@ -347,27 +351,14 @@ export class AppComponent implements OnInit, OnDestroy {
       this.remoteOverviewId = urlParams.get('overview');
       this.refreshKnownRemoteOverviewCount();
 
-      const id = requestedId || 'overview';
+      const id = requestedId;
 
       if (id) {
         const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
         const preacherNameHashPattern = /^-?\d+$/;
 
         if (id === 'overview') {
-          this.isRemoteOverview = true;
-          this.isAllTerritoriesOverview = true;
-
-          this.mapService.loadMapDesignById<TerritoryOverview>('overview').subscribe({
-            next: overview => {
-              this.remoteOverviewName = overview.preacherName || 'All territories';
-              overview.territoryList.forEach(mapDesign => this.loadTerritoryMap(mapDesign));
-              this.zoomToExtendOfAllFeatures();
-            },
-            error: error => {
-              console.error('Error loading all-territories overview:', error);
-              this.toastr.error('The all-territories overview could not be loaded.');
-            }
-          });
+          this.toastr.error('The all-territories overview requires a group overseer or assistant link.');
         } else if (uuidPattern.test(id)) {
           this.remoteTerritoryUuid = id;
           this.mapService.loadMapDesignById<TerritoryMap>(id).subscribe({
@@ -387,6 +378,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
           this.mapService.loadMapDesignById<TerritoryOverview>(id).subscribe({
             next: overview => {
+              this.applyRemoteOverview(overview);
               this.remoteOverviewName = overview.preacherName;
               this.remoteLinkedServiceGroupOverviewId = overview.linkedServiceGroupOverviewId || null;
               this.remoteLinkedServiceGroupName = overview.linkedServiceGroupName || null;
@@ -399,7 +391,10 @@ export class AppComponent implements OnInit, OnDestroy {
                 this.remoteLinkedServiceGroupOverviewId,
                 this.remoteLinkedServiceGroupName
               );
-              overview.territoryList.forEach(mapDesign => this.loadTerritoryMap(mapDesign));
+              this.remotePersonalTerritoryList = overview.territoryList ?? [];
+              this.remoteAllTerritoryList = overview.allTerritoryList ?? [];
+              this.canViewAllTerritoriesOverview = this.remoteAllTerritoryList.length > 0;
+              this.remotePersonalTerritoryList.forEach(mapDesign => this.loadTerritoryMap(mapDesign));
               this.zoomToExtendOfAllFeatures();
             },
             error: error => {
@@ -666,7 +661,9 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private isTerritoryAssigned(territoryNumber: string): boolean {
     if (!this.isLocalhost) {
-      return false;
+      return this.source.getFeatures().find(feature =>
+        feature.get('territoryNumber') === territoryNumber
+      )?.get('assigned') ?? false;
     }
 
     const territory = this.territoriesSorted.find(item => item.number === territoryNumber);
@@ -1006,6 +1003,14 @@ export class AppComponent implements OnInit, OnDestroy {
     });
   }
 
+  private applyRemoteOverview(overview: TerritoryOverview): void {
+    if (!overview.colorSettings) {
+      return;
+    }
+
+    this.congregation = Object.assign(new Congregation(), overview.colorSettings);
+  }
+
   importTerritoryMapsFromUrl(): void {
     const enteredRootUrl = this.territoryImportRootUrl.value.trim();
 
@@ -1200,6 +1205,7 @@ export class AppComponent implements OnInit, OnDestroy {
         draft: mapDesign.draft,
         foreignLanguageGroup: mapDesign.foreignLanguageGroup,
         foreignLanguageCoverage: mapDesign.foreignLanguageCoverage ?? null,
+        assigned: mapDesign.assigned ?? false,
         imported: false, // Set to true if the feature is imported
         businessSector: mapDesign.businessSector,
         industrySector: mapDesign.industrySector
@@ -1933,25 +1939,18 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   protected toggleAllTerritoriesOverview(): void {
-    const previousRemoteLocationKey = 'previousRemoteLocationBeforeAllTerritories';
-
-    if (this.isAllTerritoriesOverview) {
-      const previousRemoteLocation = sessionStorage.getItem(previousRemoteLocationKey);
-
-      if (!previousRemoteLocation) {
-        this.toastr.info('No previous remote overview or territory is available.');
-        return;
-      }
-
-      window.location.assign(previousRemoteLocation);
+    if (!this.canViewAllTerritoriesOverview) {
+      this.toastr.error('Only group overseers and their assistants can view all territories.');
       return;
     }
 
-    sessionStorage.setItem(previousRemoteLocationKey, window.location.href);
-    const rootUrl = new URL(window.location.href);
-    rootUrl.search = '';
-    rootUrl.hash = '';
-    window.location.assign(rootUrl.toString());
+    this.isAllTerritoriesOverview = !this.isAllTerritoriesOverview;
+    this.source.clear();
+    const territoryList = this.isAllTerritoriesOverview
+      ? this.remoteAllTerritoryList
+      : this.remotePersonalTerritoryList;
+    territoryList.forEach(mapDesign => this.loadTerritoryMap(mapDesign));
+    this.zoomToExtendOfAllFeatures();
   }
 
   protected openDoNotVisitWarning(): void {
@@ -2947,6 +2946,7 @@ export class AppComponent implements OnInit, OnDestroy {
         switchGroup: (preacher: Preacher) => this.switchGroup(preacher),
         canManageServiceGroups: this.isLocalhost && this.persona === Personas.MANAGER && !foreignGroup,
         serviceGroups: this.congregation.serviceGroups ?? [],
+        createPreacher: (name: string) => this.createPreacher(name, foreignGroup),
         createServiceGroup: (name: string) => this.createServiceGroup(name),
         deleteServiceGroup: (group: ServiceGroup) => this.deleteServiceGroup(group),
         assignServiceGroup: (preacher: Preacher, groupName: string) =>
@@ -3114,7 +3114,8 @@ export class AppComponent implements OnInit, OnDestroy {
                         .uploadJson(territory.uuid!, {
                           ...territoryMapByNumber.get(territory.number)!,
                           foreignLanguageCoverage: territory.foreignLanguageCoverage ?? null,
-                          hasDoNotVisitEntries: (territory.doNotVisitList?.length ?? 0) > 0
+                          hasDoNotVisitEntries: (territory.doNotVisitList?.length ?? 0) > 0,
+                          assigned: true,
                         })
                         .pipe(
                           tap(() => {
@@ -3124,6 +3125,29 @@ export class AppComponent implements OnInit, OnDestroy {
                           concatMap(() => this.mapService.saveTerritory(territory))
                         ));
                     const updatedAt = new Date();
+                    const colorSettings: ColorSettings = {
+                      defaultFillColor: congregation.defaultFillColor,
+                      defaultStrokeColor: congregation.defaultStrokeColor,
+                      defaultTextFillColor: congregation.defaultTextFillColor,
+                      defaultTextStrokeColor: congregation.defaultTextStrokeColor,
+                      foreignFillColor: congregation.foreignFillColor,
+                      foreignStrokeColor: congregation.foreignStrokeColor,
+                      foreignTextFillColor: congregation.foreignTextFillColor,
+                      foreignTextStrokeColor: congregation.foreignTextStrokeColor
+                    };
+                    const allTerritoryList = territoryMaps.map(map => {
+                      const territory = territories.find(item => item.number === map.territoryNumber);
+
+                      return {
+                        ...map,
+                        foreignLanguageCoverage: territory?.foreignLanguageCoverage ?? null,
+                        hasDoNotVisitEntries: (territory?.doNotVisitList?.length ?? 0) > 0,
+                        assigned: territory?.registryEntryList?.some(entry =>
+                          !entry.returnDate && entry.preacher.name !== 'CongregationPool'
+                        ) ?? false,
+                        url: territory?.uuid ?? ''
+                      };
+                    });
                     const overviewIdByPreacherName = new globalThis.Map(
                       congregation.preacherList.map(preacher => [
                         preacher.name,
@@ -3145,6 +3169,7 @@ export class AppComponent implements OnInit, OnDestroy {
                       );
                       const overview = new TerritoryOverview();
                       overview.preacherName = preacher.name;
+                      overview.colorSettings = colorSettings;
                       const linkedServiceGroup = !preacher.group
                         ? congregation.serviceGroups?.find(group =>
                           group.name === preacher.serviceGroupName
@@ -3167,9 +3192,17 @@ export class AppComponent implements OnInit, OnDestroy {
                             ...map,
                             foreignLanguageCoverage: territory?.foreignLanguageCoverage ?? null,
                             hasDoNotVisitEntries: (territory?.doNotVisitList?.length ?? 0) > 0,
+                            assigned: true,
                             url: territory?.uuid ?? ''
                           };
                         });
+                      const canViewAllTerritories = congregation.serviceGroups?.some(group =>
+                        group.overseerName === preacher.name || group.assistantName === preacher.name
+                      ) ?? false;
+
+                      if (canViewAllTerritories) {
+                        overview.allTerritoryList = allTerritoryList;
+                      }
                       overview.updatedAt = updatedAt;
 
                       return {
@@ -3186,8 +3219,10 @@ export class AppComponent implements OnInit, OnDestroy {
                     const obsoleteOverviewFileNames = fileNames.filter(fileName =>
                       /^-?\d+\.json$/.test(fileName) && !currentOverviewFileNames.has(fileName)
                     );
+                    const publicOverviewExists = fileNames.includes('overview.json');
                     const synchronizationRequests = [
                       ...obsoleteUuids.map(uuid => this.apiService.deleteJsonFile(uuid)),
+                      ...(publicOverviewExists ? [this.apiService.deleteJsonFile('overview')] : []),
                       ...obsoleteOverviewFileNames.map(fileName =>
                         this.apiService.deleteJsonFile(fileName.replace(/\.json$/, ''))
                       ),
@@ -3306,6 +3341,37 @@ export class AppComponent implements OnInit, OnDestroy {
       first.name.localeCompare(second.name, undefined, {sensitivity: 'base'})
     );
     this.saveServiceGroupChanges(`Service group ${normalizedName} was created.`);
+    return true;
+  }
+
+  private createPreacher(name: string, foreignLanguageGroup: boolean): boolean {
+    const normalizedName = name.trim().replace(/\s+/g, ' ');
+
+    if (!normalizedName || normalizedName.length > 80) {
+      this.toastr.error('Please enter a valid preacher name.');
+      return false;
+    }
+
+    if (this.congregation.preacherList.some(preacher =>
+      preacher.name.localeCompare(normalizedName, undefined, {sensitivity: 'accent'}) === 0
+    )) {
+      this.toastr.warning('A preacher or group with this name already exists.');
+      return false;
+    }
+
+    const preacher = new Preacher();
+    preacher.name = normalizedName;
+    preacher.uuid = crypto.randomUUID();
+    preacher.foreignLanguageGroup = foreignLanguageGroup;
+    this.congregation.preacherList.push(preacher);
+    this.congregation.preacherList.sort((first, second) =>
+      first.name.localeCompare(second.name, undefined, {sensitivity: 'base'})
+    );
+    this.preacherList.push(preacher);
+    this.preacherList.sort((first, second) =>
+      first.name.localeCompare(second.name, undefined, {sensitivity: 'base'})
+    );
+    this.saveServiceGroupChanges(`${normalizedName} was added.`);
     return true;
   }
 

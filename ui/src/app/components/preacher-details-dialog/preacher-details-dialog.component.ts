@@ -17,6 +17,7 @@ export interface PreacherDetailsDialogData {
   switchGroup: (preacher: Preacher) => void;
   canManageServiceGroups: boolean;
   serviceGroups: ServiceGroup[];
+  createPreacher: (name: string) => boolean;
   createServiceGroup: (name: string) => boolean;
   deleteServiceGroup: (group: ServiceGroup) => void;
   assignServiceGroup: (preacher: Preacher, groupName: string) => void;
@@ -33,6 +34,7 @@ export interface PreacherDetailsDialogData {
 export class PreacherDetailsDialogComponent {
 
   newServiceGroupName: string = '';
+  newPreacherName: string = '';
 
   constructor(@Inject(MAT_DIALOG_DATA) public data: PreacherDetailsDialogData) {
   }
@@ -40,6 +42,12 @@ export class PreacherDetailsDialogComponent {
   createServiceGroup(): void {
     if (this.data.createServiceGroup(this.newServiceGroupName)) {
       this.newServiceGroupName = '';
+    }
+  }
+
+  createPreacher(): void {
+    if (this.data.createPreacher(this.newPreacherName)) {
+      this.newPreacherName = '';
     }
   }
 

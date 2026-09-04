@@ -9,7 +9,7 @@
       <div class="group-management-header">
         <div>
           <h3 id="service-groups-title">Service groups</h3>
-          <p>Create groups and assign each preacher to at most one group.</p>
+          <p>Create groups or individual preachers and assign each preacher to at most one group.</p>
         </div>
         <div class="group-create-controls">
           <input type="text" maxlength="80" placeholder="New group name"
@@ -17,6 +17,13 @@
           <button class="action-button primary-button" type="button"
                   [disabled]="!newServiceGroupName.trim()" (click)="createServiceGroup()">ADD GROUP</button>
         </div>
+      </div>
+
+      <div class="preacher-create-controls">
+        <input type="text" maxlength="80" placeholder="New preacher name"
+               [(ngModel)]="newPreacherName" (keyup.enter)="createPreacher()">
+        <button class="action-button primary-button" type="button"
+                [disabled]="!newPreacherName.trim()" (click)="createPreacher()">ADD PREACHER</button>
       </div>
 
       @if (data.serviceGroups.length > 0) {

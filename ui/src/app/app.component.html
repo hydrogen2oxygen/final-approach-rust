@@ -27,10 +27,12 @@
         <mat-icon>warning_amber</mat-icon>
       </button>
     }
-    <button class="icon-button icon-primary" (click)="toggleAllTerritoriesOverview()"
-            [title]="isAllTerritoriesOverview ? 'Back to previous overview or territory' : 'Show all territories'">
-      <mat-icon>{{ isAllTerritoriesOverview ? 'undo' : 'layers' }}</mat-icon>
-    </button>
+    @if (canViewAllTerritoriesOverview) {
+      <button class="icon-button icon-primary" (click)="toggleAllTerritoriesOverview()"
+              [title]="isAllTerritoriesOverview ? 'Back to personal overview' : 'Show all territories'">
+        <mat-icon>{{ isAllTerritoriesOverview ? 'undo' : 'layers' }}</mat-icon>
+      </button>
+    }
   }
   <button class="icon-button icon-primary" (click)="toggleFullscreen()">
     <mat-icon>fullscreen</mat-icon>

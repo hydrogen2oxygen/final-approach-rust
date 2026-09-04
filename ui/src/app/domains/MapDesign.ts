@@ -24,6 +24,7 @@ export class TerritoryMap {
   foreignLanguageGroup:boolean=false;
   foreignLanguageCoverage:ForeignLanguageCoverage=null;
   hasDoNotVisitEntries:boolean=false;
+  assigned?:boolean=false;
   businessSector:boolean=false;
   industrySector:boolean=false;
 }
