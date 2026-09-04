@@ -70,8 +70,8 @@
             </td>
             @if (data.canManageServiceGroups) {
               <td>
-                <select class="group-select" [value]="getServiceGroupName(preacher)" [disabled]="preacher.group"
-                        (change)="changeServiceGroup(preacher, $event)">
+                <select class="group-select" [ngModel]="getServiceGroupName(preacher)" [disabled]="preacher.group"
+                        (ngModelChange)="changeServiceGroup(preacher, $event)">
                   <option value="">No group</option>
                   @for (group of data.serviceGroups; track group.name) {
                     <option [value]="group.name">{{ group.name }}</option>
@@ -79,9 +79,9 @@
                 </select>
               </td>
               <td>
-                <select class="group-select" [value]="data.getServiceGroupRole(preacher)"
+                <select class="group-select" [ngModel]="data.getServiceGroupRole(preacher)"
                         [disabled]="preacher.group || !getServiceGroupName(preacher)"
-                        (change)="changeServiceGroupRole(preacher, $event)">
+                        (ngModelChange)="changeServiceGroupRole(preacher, $event)">
                   <option value="member">Member</option>
                   <option value="overseer">Group overseer</option>
                   <option value="assistant">Group overseer assistant</option>

@@ -23,7 +23,8 @@ The fixed `push.php` endpoint only registers and removes browser subscriptions. 
 
 ## Behavior
 
-- A browser push subscription belongs to exactly one preacher overview. Subscribing to another overview replaces the previous assignment.
+- A browser has one primary preacher subscription. If that preacher is the overseer or assistant of a service group, the server securely adds that group's overview to the same subscription.
+- Subscribing to an unrelated preacher overview replaces the previous personal/group subscription bundle.
 - The all-territories overview cannot be subscribed to.
 - The remote user can unsubscribe from the overview toolbar.
 - A new assignment is sent after the next successful synchronization.

@@ -86,6 +86,8 @@ export class TerritoryOverview {
   preacherName:string = '';
   territoryList:TerritoryMap[] = [];
   updatedAt:Date = new Date();
+  linkedServiceGroupOverviewId:string = '';
+  linkedServiceGroupName:string = '';
 }
 
 export class DoNotVisit {

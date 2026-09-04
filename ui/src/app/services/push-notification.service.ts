@@ -6,7 +6,13 @@ interface PushConfiguration {
 
 interface PushSubscriptionState {
   overviewId: string;
+  overviewIds: string[];
   preacherName: string;
+}
+
+interface PushSubscriptionResponse {
+  subscribed: boolean;
+  overviewIds: string[];
 }
 
 @Injectable({
@@ -28,10 +34,26 @@ export class PushNotificationService {
     return this.getState()?.overviewId ?? null;
   }
 
+  isOverviewSubscribed(overviewId: string): boolean {
+    return this.getState()?.overviewIds.includes(overviewId) ?? false;
+  }
+
+  needsLinkedOverviewRefresh(overviewId: string, linkedOverviewId: string | null): boolean {
+    const state = this.getState();
+
+    if (!state || state.overviewId !== overviewId) {
+      return false;
+    }
+
+    const expectedOverviewIds = linkedOverviewId ? [overviewId, linkedOverviewId] : [overviewId];
+    return state.overviewIds.length !== expectedOverviewIds.length
+      || expectedOverviewIds.some(id => !state.overviewIds.includes(id));
+  }
+
   shouldOfferSubscription(overviewId: string): boolean {
     return this.isSupported()
       && Notification.permission !== 'denied'
-      && this.getSubscribedOverviewId() !== overviewId
+      && !this.isOverviewSubscribed(overviewId)
       && localStorage.getItem(this.declinedKeyPrefix + overviewId) !== 'true';
   }
 
@@ -88,7 +110,12 @@ export class PushNotificationService {
         throw new Error(`Subscription could not be saved (${response.status}).`);
       }
 
-      const state: PushSubscriptionState = {overviewId, preacherName};
+      return response.json() as Promise<PushSubscriptionResponse>;
+    }).then(response => {
+      const overviewIds = Array.isArray(response.overviewIds)
+        ? response.overviewIds.filter(id => typeof id === 'string')
+        : [overviewId];
+      const state: PushSubscriptionState = {overviewId, overviewIds, preacherName};
       localStorage.setItem(this.stateKey, JSON.stringify(state));
       localStorage.removeItem(this.declinedKeyPrefix + overviewId);
     });
@@ -142,7 +169,11 @@ export class PushNotificationService {
       const state = JSON.parse(storedState) as Partial<PushSubscriptionState>;
 
       if (typeof state.overviewId === 'string' && typeof state.preacherName === 'string') {
-        return state as PushSubscriptionState;
+        return {
+          overviewId: state.overviewId,
+          overviewIds: Array.isArray(state.overviewIds) ? state.overviewIds : [state.overviewId],
+          preacherName: state.preacherName
+        };
       }
     } catch {
       this.clearState();

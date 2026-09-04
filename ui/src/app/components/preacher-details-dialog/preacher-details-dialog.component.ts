@@ -47,14 +47,11 @@ export class PreacherDetailsDialogComponent {
     return preacher.serviceGroupName ?? '';
   }
 
-  changeServiceGroup(preacher: Preacher, event: Event): void {
-    this.data.assignServiceGroup(preacher, (event.target as HTMLSelectElement).value);
+  changeServiceGroup(preacher: Preacher, groupName: string): void {
+    this.data.assignServiceGroup(preacher, groupName);
   }
 
-  changeServiceGroupRole(preacher: Preacher, event: Event): void {
-    this.data.assignServiceGroupRole(
-      preacher,
-      (event.target as HTMLSelectElement).value as ServiceGroupRole
-    );
+  changeServiceGroupRole(preacher: Preacher, role: ServiceGroupRole): void {
+    this.data.assignServiceGroupRole(preacher, role);
   }
 }

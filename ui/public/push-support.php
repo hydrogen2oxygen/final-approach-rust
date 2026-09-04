@@ -84,7 +84,7 @@ function pushLoadSubscriptions(): array
   return pushReadPhpDataFile(PUSH_SUBSCRIPTIONS_FILE);
 }
 
-function pushSaveSubscription(string $overviewId, array $subscription): void
+function pushSaveSubscription(array $overviewIds, array $subscription): void
 {
   $endpoint = $subscription['endpoint'] ?? '';
   $p256dh = $subscription['keys']['p256dh'] ?? '';
@@ -104,7 +104,7 @@ function pushSaveSubscription(string $overviewId, array $subscription): void
     static fn(array $item): bool => ($item['endpoint'] ?? '') !== $endpoint
   ));
   $subscriptions[] = [
-    'overviewId' => $overviewId,
+    'overviewIds' => array_values(array_unique($overviewIds)),
     'endpoint' => $endpoint,
     'p256dh' => $p256dh,
     'auth' => $auth,
@@ -164,7 +164,11 @@ function pushSendToOverview(string $overviewId, array $notification): array
   $matched = 0;
 
   foreach ($subscriptions as $subscription) {
-    if (($subscription['overviewId'] ?? '') !== $overviewId) {
+    $subscribedOverviewIds = is_array($subscription['overviewIds'] ?? null)
+      ? $subscription['overviewIds']
+      : [(string)($subscription['overviewId'] ?? '')];
+
+    if (!in_array($overviewId, $subscribedOverviewIds, true)) {
       $remainingSubscriptions[] = $subscription;
       continue;
     }

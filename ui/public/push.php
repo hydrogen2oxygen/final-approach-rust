@@ -77,8 +77,28 @@ try {
       pushJsonResponse(['error' => 'Territory overview not found'], 404);
     }
 
-    pushSaveSubscription($overviewId, is_array($body['subscription'] ?? null) ? $body['subscription'] : []);
-    pushJsonResponse(['subscribed' => true]);
+    $overview = json_decode((string)file_get_contents($overviewPath), true);
+    $overviewIds = [$overviewId];
+    $linkedGroupOverviewId = is_array($overview)
+      ? (string)($overview['linkedServiceGroupOverviewId'] ?? '')
+      : '';
+
+    if ($linkedGroupOverviewId !== '') {
+      $linkedGroupPath = __DIR__ . '/assets/data/' . $linkedGroupOverviewId . '.json';
+
+      if (preg_match('/^-?\d+$/', $linkedGroupOverviewId) && is_file($linkedGroupPath)) {
+        $overviewIds[] = $linkedGroupOverviewId;
+      }
+    }
+
+    pushSaveSubscription(
+      $overviewIds,
+      is_array($body['subscription'] ?? null) ? $body['subscription'] : []
+    );
+    pushJsonResponse([
+      'subscribed' => true,
+      'overviewIds' => $overviewIds
+    ]);
   }
 
   if ($action === 'unsubscribe') {

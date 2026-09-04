@@ -45,7 +45,7 @@ import {SettingsComponent} from './components/settings/settings.component';
 import {getCenter} from 'ol/extent';
 import {transform} from 'ol/proj';
 import {ApiService} from './services/api.service';
-import {catchError, concatMap, from, Observable, of, tap, toArray} from 'rxjs';
+import {catchError, concatMap, from, Observable, of, Subject, Subscription, tap, toArray} from 'rxjs';
 import {RemoteOverviewHistoryDialogComponent} from './components/remote-overview-history-dialog/remote-overview-history-dialog.component';
 import {
   RemoteOverviewHistoryEntry,
@@ -144,6 +144,8 @@ export class AppComponent implements OnInit, OnDestroy {
   preacherList: Preacher[] = [];
   remoteOverviewId: string | null = null;
   remoteOverviewName: string | null = null;
+  remoteLinkedServiceGroupOverviewId: string | null = null;
+  remoteLinkedServiceGroupName: string | null = null;
   remoteTerritoryUuid: string | null = null;
   remoteTerritoryMap: TerritoryMap | null = null;
   isRemoteOverview: boolean = false;
@@ -158,6 +160,8 @@ export class AppComponent implements OnInit, OnDestroy {
   private positionFeature: Feature<Geometry> = new Feature<Geometry>();
   private accuracyFeature: Feature<Geometry> = new Feature<Geometry>();
   private locationCentered: boolean = false;
+  private readonly serviceGroupSaveQueue = new Subject<string>();
+  private serviceGroupSaveSubscription: Subscription | undefined;
 
   isLocalhost =
     window.location.hostname === 'localhost' ||
@@ -178,6 +182,17 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+
+    this.serviceGroupSaveSubscription = this.serviceGroupSaveQueue.pipe(
+      concatMap(successMessage => this.mapService.saveCongregation(this.congregation).pipe(
+        tap(() => this.toastr.success(successMessage)),
+        catchError(error => {
+          console.error('Error saving service groups:', error);
+          this.toastr.error('The service group changes could not be saved.');
+          return of(void 0);
+        })
+      ))
+    ).subscribe();
 
     this.updateService.checkForUpdate();
 
@@ -371,10 +386,17 @@ export class AppComponent implements OnInit, OnDestroy {
           this.mapService.loadMapDesignById<TerritoryOverview>(id).subscribe({
             next: overview => {
               this.remoteOverviewName = overview.preacherName;
+              this.remoteLinkedServiceGroupOverviewId = overview.linkedServiceGroupOverviewId || null;
+              this.remoteLinkedServiceGroupName = overview.linkedServiceGroupName || null;
               this.remoteOverviewHistoryService.remember(id, overview.preacherName);
               this.refreshKnownRemoteOverviewCount();
               this.refreshPushSubscriptionState();
-              this.offerPushSubscription(id, overview.preacherName);
+              this.offerPushSubscription(
+                id,
+                overview.preacherName,
+                this.remoteLinkedServiceGroupOverviewId,
+                this.remoteLinkedServiceGroupName
+              );
               overview.territoryList.forEach(mapDesign => this.loadTerritoryMap(mapDesign));
               this.zoomToExtendOfAllFeatures();
             },
@@ -401,6 +423,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.geolocation?.setTracking(false);
+    this.serviceGroupSaveSubscription?.unsubscribe();
   }
 
   protected showCurrentLocation(): void {
@@ -2929,9 +2952,9 @@ export class AppComponent implements OnInit, OnDestroy {
         p2.foreignLanguageGroup = p.foreignLanguageGroup;
       }
     })
-    this.mapService.saveCongregation(this.congregation).subscribe(() => {
-      this.toastr.success(`${p.name} is now ${p.foreignLanguageGroup ? 'in' : 'out'} foreign language group`);
-    })
+    this.saveServiceGroupChanges(
+      `${p.name} is now ${p.foreignLanguageGroup ? 'in' : 'out'} foreign language group`
+    );
   }
 
   protected synchronize() {
@@ -3008,6 +3031,15 @@ export class AppComponent implements OnInit, OnDestroy {
                           concatMap(() => this.mapService.saveTerritory(territory))
                         ));
                     const updatedAt = new Date();
+                    const overviewIdByPreacherName = new globalThis.Map(
+                      congregation.preacherList.map(preacher => [
+                        preacher.name,
+                        this.createPreacherNameHashCode(
+                          preacher.name,
+                          congregation.territoryOverviewPassword
+                        )
+                      ])
+                    );
                     const territoryOverviews = congregation.preacherList.map(preacher => {
                       const assignedTerritoryNumbers = new Set(
                         territories
@@ -3020,6 +3052,19 @@ export class AppComponent implements OnInit, OnDestroy {
                       );
                       const overview = new TerritoryOverview();
                       overview.preacherName = preacher.name;
+                      const linkedServiceGroup = !preacher.group
+                        ? congregation.serviceGroups?.find(group =>
+                          group.name === preacher.serviceGroupName
+                          && (group.overseerName === preacher.name || group.assistantName === preacher.name)
+                        )
+                        : undefined;
+
+                      if (linkedServiceGroup) {
+                        overview.linkedServiceGroupName = linkedServiceGroup.name;
+                        overview.linkedServiceGroupOverviewId =
+                          overviewIdByPreacherName.get(linkedServiceGroup.name) ?? '';
+                      }
+
                       overview.territoryList = territoryMaps
                         .filter(map => assignedTerritoryNumbers.has(map.territoryNumber))
                         .map(map => {
@@ -3286,13 +3331,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   private saveServiceGroupChanges(successMessage: string): void {
-    this.mapService.saveCongregation(this.congregation).subscribe({
-      next: () => this.toastr.success(successMessage),
-      error: error => {
-        console.error('Error saving service groups:', error);
-        this.toastr.error('The service group changes could not be saved.');
-      }
-    });
+    this.serviceGroupSaveQueue.next(successMessage);
   }
 
   private ensureServiceGroupPreachers(): boolean {
@@ -3340,29 +3379,74 @@ export class AppComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.activatePushSubscription(this.remoteOverviewId, this.remoteOverviewName);
+    this.activatePushSubscription(
+      this.remoteOverviewId,
+      this.remoteOverviewName,
+      this.remoteLinkedServiceGroupOverviewId,
+      this.remoteLinkedServiceGroupName
+    );
   }
 
-  private offerPushSubscription(overviewId: string, preacherName: string): void {
+  private offerPushSubscription(
+    overviewId: string,
+    preacherName: string,
+    linkedServiceGroupOverviewId: string | null,
+    linkedServiceGroupName: string | null
+  ): void {
+    if (this.pushNotificationService.needsLinkedOverviewRefresh(
+      overviewId,
+      linkedServiceGroupOverviewId
+    )) {
+      this.activatePushSubscription(
+        overviewId,
+        preacherName,
+        linkedServiceGroupOverviewId,
+        linkedServiceGroupName
+      );
+      return;
+    }
+
     if (!this.pushNotificationService.shouldOfferSubscription(overviewId)) {
       return;
     }
 
     const currentOverviewId = this.pushNotificationService.getSubscribedOverviewId();
-    const question = currentOverviewId
+    let question = currentOverviewId
       ? `Möchten Sie stattdessen die Gebietsübersicht von ${preacherName} abonnieren? Das bisherige Abonnement wird ersetzt.`
       : `Möchten Sie die Gebietsübersicht von ${preacherName} abonnieren und Benachrichtigungen erhalten?`;
+
+    if (linkedServiceGroupOverviewId && linkedServiceGroupName) {
+      question += ` Die Gruppe ${linkedServiceGroupName} wird automatisch mit abonniert.`;
+    }
 
     if (!confirm(question)) {
       this.pushNotificationService.rememberDeclined(overviewId);
       return;
     }
 
-    this.activatePushSubscription(overviewId, preacherName);
+    this.activatePushSubscription(
+      overviewId,
+      preacherName,
+      linkedServiceGroupOverviewId,
+      linkedServiceGroupName
+    );
   }
 
-  private activatePushSubscription(overviewId: string, preacherName: string): void {
+  private activatePushSubscription(
+    overviewId: string,
+    preacherName: string,
+    linkedServiceGroupOverviewId: string | null,
+    linkedServiceGroupName: string | null
+  ): void {
     this.pushNotificationService.subscribe(overviewId, preacherName).then(() => {
+      if (linkedServiceGroupOverviewId && linkedServiceGroupName) {
+        this.remoteOverviewHistoryService.remember(
+          linkedServiceGroupOverviewId,
+          linkedServiceGroupName
+        );
+        this.refreshKnownRemoteOverviewCount();
+      }
+
       this.refreshPushSubscriptionState();
       this.toastr.success(`Benachrichtigungen für ${preacherName} wurden aktiviert.`);
     }).catch(error => {
@@ -3374,7 +3458,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private refreshPushSubscriptionState(): void {
     this.isSubscribedToCurrentOverview = Boolean(
       this.remoteOverviewId
-      && this.pushNotificationService.getSubscribedOverviewId() === this.remoteOverviewId
+      && this.pushNotificationService.isOverviewSubscribed(this.remoteOverviewId)
     );
   }
 
