@@ -70,22 +70,30 @@
             </td>
             @if (data.canManageServiceGroups) {
               <td>
-                <select class="group-select" [ngModel]="getServiceGroupName(preacher)" [disabled]="preacher.group"
-                        (ngModelChange)="changeServiceGroup(preacher, $event)">
-                  <option value="">No group</option>
-                  @for (group of data.serviceGroups; track group.name) {
-                    <option [value]="group.name">{{ group.name }}</option>
-                  }
-                </select>
+                @if (!preacher.group) {
+                  <select class="group-select" [ngModel]="getServiceGroupName(preacher)"
+                          (ngModelChange)="changeServiceGroup(preacher, $event)">
+                    <option value="">No group</option>
+                    @for (group of data.serviceGroups; track group.name) {
+                      <option [value]="group.name">{{ group.name }}</option>
+                    }
+                  </select>
+                } @else {
+                  <span aria-label="Not applicable">—</span>
+                }
               </td>
               <td>
-                <select class="group-select" [ngModel]="data.getServiceGroupRole(preacher)"
-                        [disabled]="preacher.group || !getServiceGroupName(preacher)"
-                        (ngModelChange)="changeServiceGroupRole(preacher, $event)">
-                  <option value="member">Member</option>
-                  <option value="overseer">Group overseer</option>
-                  <option value="assistant">Group overseer assistant</option>
-                </select>
+                @if (!preacher.group) {
+                  <select class="group-select" [ngModel]="data.getServiceGroupRole(preacher)"
+                          [disabled]="!getServiceGroupName(preacher)"
+                          (ngModelChange)="changeServiceGroupRole(preacher, $event)">
+                    <option value="member">Member</option>
+                    <option value="overseer">Group overseer</option>
+                    <option value="assistant">Group overseer assistant</option>
+                  </select>
+                } @else {
+                  <span aria-label="Not applicable">—</span>
+                }
               </td>
             }
             <td class="territory-count">{{ data.getAssignedTerritoryCount(preacher) }}</td>

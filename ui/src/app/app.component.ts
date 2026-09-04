@@ -2888,8 +2888,39 @@ export class AppComponent implements OnInit, OnDestroy {
     }
   }
 
-  protected deletePreacher(p: Preacher) {
-    this.toastr.warning('Preacher will be deleted from all territories ... to be implemented');
+  protected deletePreacher(preacher: Preacher): void {
+    if (preacher.group) {
+      this.toastr.warning('Delete the service group from the group management section.');
+      return;
+    }
+
+    const assignedTerritoryCount = this.getAssignedTerritories(preacher).length;
+
+    if (assignedTerritoryCount > 0) {
+      this.toastr.warning(
+        `Return the ${assignedTerritoryCount} assigned ${assignedTerritoryCount === 1 ? 'territory' : 'territories'} before deleting ${preacher.name}.`
+      );
+      return;
+    }
+
+    if (!confirm(`Delete preacher ${preacher.name}? Existing registry history will be retained.`)) {
+      return;
+    }
+
+    this.removePreacherFromLeadershipRoles(preacher.name);
+    const congregationPreacherIndex = this.congregation.preacherList.indexOf(preacher);
+
+    if (congregationPreacherIndex >= 0) {
+      this.congregation.preacherList.splice(congregationPreacherIndex, 1);
+    }
+
+    const visiblePreacherIndex = this.preacherList.indexOf(preacher);
+
+    if (visiblePreacherIndex >= 0) {
+      this.preacherList.splice(visiblePreacherIndex, 1);
+    }
+
+    this.saveServiceGroupChanges(`${preacher.name} was deleted.`);
   }
 
   protected openPreacherDetails(foreignGroup: boolean) {
