@@ -11,14 +11,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 header('Content-Type: application/json; charset=utf-8');
 
-ini_set('display_errors', '1');
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
 error_reporting(E_ALL);
 
 $apiKey = 'CHANGE_ME_SECRET_KEY';
 
 $givenKey = $_SERVER['HTTP_X_API_KEY'] ?? '';
 
-if ($givenKey !== $apiKey) {
+if (!hash_equals($apiKey, $givenKey)) {
   jsonResponse(['error' => 'Unauthorized'], 401);
 }
 
@@ -117,6 +118,50 @@ $action = $_GET['action'] ?? null;
 
 if ($action === 'ping') {
   jsonResponse(['status' => 'ok']);
+}
+
+if ($action === 'notify') {
+  if ($method !== 'POST') {
+    jsonResponse(['error' => 'Methode nicht erlaubt'], 405);
+  }
+
+  $notification = readJsonBody();
+  $overviewId = (string)($notification['overviewId'] ?? '');
+  $eventId = (string)($notification['eventId'] ?? '');
+  $title = trim((string)($notification['title'] ?? ''));
+  $body = trim((string)($notification['body'] ?? ''));
+  $url = (string)($notification['url'] ?? '');
+
+  if (!preg_match('/^-?\d+$/', $overviewId)
+    || !preg_match('/^[a-zA-Z0-9:_\-.]{8,200}$/', $eventId)
+    || $title === '' || strlen($title) > 200
+    || $body === '' || strlen($body) > 1000
+    || !preg_match('/^\.\/\?id=-?\d+$/', $url)) {
+    jsonResponse(['error' => 'Ungültige Push-Nachricht'], 400);
+  }
+
+  if (!is_file(__DIR__ . '/assets/data/' . $overviewId . '.json')) {
+    jsonResponse(['error' => 'Gebietsübersicht nicht gefunden'], 404);
+  }
+
+  $pushSupportPath = __DIR__ . '/push-support.php';
+
+  if (!is_file($pushSupportPath)) {
+    jsonResponse(['error' => 'Push-Unterstützung wurde noch nicht hochgeladen'], 503);
+  }
+
+  try {
+    require_once $pushSupportPath;
+    jsonResponse(pushSendToOverview($overviewId, [
+      'eventId' => $eventId,
+      'title' => $title,
+      'body' => $body,
+      'url' => $url
+    ]));
+  } catch (Throwable $error) {
+    error_log('Push notification failed: ' . $error->getMessage());
+    jsonResponse(['error' => 'Push-Nachricht konnte nicht gesendet werden'], 502);
+  }
 }
 
 switch ($method) {

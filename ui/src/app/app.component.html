@@ -220,6 +220,19 @@
       @if (isRemoteOverview) {
         <span class="icon-button icon-success remote-context-control" title="Territory overview">
           <mat-icon>view_list</mat-icon><b style="font-size: 1rem">{{ remoteOverviewName || 'Preacher' }}</b></span>
+        @if (!isAllTerritoriesOverview && isSubscribedToCurrentOverview) {
+          <button class="icon-button icon-warning remote-context-control" type="button"
+                  title="Benachrichtigungen abbestellen" (click)="unsubscribeFromPushNotifications()">
+            <mat-icon>notifications_off</mat-icon>
+            ABBESTELLEN
+          </button>
+        } @else if (!isAllTerritoriesOverview) {
+          <button class="icon-button icon-primary remote-context-control" type="button"
+                  title="Benachrichtigungen abonnieren" (click)="subscribeToPushNotifications()">
+            <mat-icon>notifications</mat-icon>
+            ABONNIEREN
+          </button>
+        }
       } @else if (remoteOverviewId) {
         <button class="icon-button icon-success remote-context-control" title="Back to territory overview" (click)="navigateBackToOverview()">
           <mat-icon>arrow_back</mat-icon>

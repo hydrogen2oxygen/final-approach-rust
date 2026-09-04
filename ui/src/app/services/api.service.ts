@@ -9,6 +9,20 @@ export interface ApiFileResponse {
   file: string;
 }
 
+export interface PushNotificationRequest {
+  overviewId: string;
+  eventId: string;
+  title: string;
+  body: string;
+  url: string;
+}
+
+export interface PushNotificationResponse {
+  delivered: number;
+  expired: number;
+  skipped: boolean;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -68,6 +82,14 @@ export class ApiService {
     return this.http.delete<ApiFileResponse>(this.apiUrl({name}), {
       headers: this.apiHeaders()
     });
+  }
+
+  sendPushNotification(notification: PushNotificationRequest): Observable<PushNotificationResponse> {
+    return this.http.post<PushNotificationResponse>(
+      this.apiUrl({action: 'notify'}),
+      notification,
+      {headers: this.apiHeaders()}
+    );
   }
 
 

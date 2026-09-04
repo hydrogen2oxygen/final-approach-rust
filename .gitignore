@@ -28,6 +28,9 @@ ui/.vscode
 /.idea/
 /data/
 /ui/public/browser/
+/ui/public/.push-vapid.php
+/ui/public/.push-subscriptions.php
+/ui/public/.push-events.php
 /ui/src-tauri/binaries/
 /ui/src-tauri/target/
 /ui/src-tauri/backend-target/

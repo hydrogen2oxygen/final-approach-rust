@@ -44,7 +44,7 @@ import {SettingsComponent} from './components/settings/settings.component';
 import {getCenter} from 'ol/extent';
 import {transform} from 'ol/proj';
 import {ApiService} from './services/api.service';
-import {catchError, concatMap, from, of, tap, toArray} from 'rxjs';
+import {catchError, concatMap, from, Observable, of, tap, toArray} from 'rxjs';
 import {RemoteOverviewHistoryDialogComponent} from './components/remote-overview-history-dialog/remote-overview-history-dialog.component';
 import {
   RemoteOverviewHistoryEntry,
@@ -65,6 +65,7 @@ import {
   RemoteOverviewAccess,
   RemoteOverviewAccessDialogComponent
 } from './components/remote-overview-access-dialog/remote-overview-access-dialog.component';
+import {PushNotificationService} from './services/push-notification.service';
 
 interface SearchResult {
   label: string;
@@ -146,6 +147,7 @@ export class AppComponent implements OnInit, OnDestroy {
   searchQuery: string = '';
   locationTracking: boolean = false;
   isAllTerritoriesOverview: boolean = false;
+  isSubscribedToCurrentOverview: boolean = false;
 
   private geolocation: Geolocation | undefined;
   private locationLayer: VectorLayer | undefined;
@@ -166,7 +168,8 @@ export class AppComponent implements OnInit, OnDestroy {
     private toastr: ToastrService,
     private apiService: ApiService,
     private remoteOverviewHistoryService: RemoteOverviewHistoryService,
-    private updateService: UpdateService
+    private updateService: UpdateService,
+    private pushNotificationService: PushNotificationService
   ) {
   }
 
@@ -366,6 +369,8 @@ export class AppComponent implements OnInit, OnDestroy {
               this.remoteOverviewName = overview.preacherName;
               this.remoteOverviewHistoryService.remember(id, overview.preacherName);
               this.refreshKnownRemoteOverviewCount();
+              this.refreshPushSubscriptionState();
+              this.offerPushSubscription(id, overview.preacherName);
               overview.territoryList.forEach(mapDesign => this.loadTerritoryMap(mapDesign));
               this.zoomToExtendOfAllFeatures();
             },
@@ -2376,6 +2381,7 @@ export class AppComponent implements OnInit, OnDestroy {
       }
 
       territory.registryEntryList.unshift(registry);
+      territory.newPreacherAssigned = true;
       if (territory.registryEntryList.length > 20) {
         territory.registryEntryList.pop();
       }
@@ -3007,7 +3013,8 @@ export class AppComponent implements OnInit, OnDestroy {
                         this.apiService.deleteJsonFile(fileName.replace(/\.json$/, ''))
                       ),
                       ...territoryUploads,
-                      ...territoryOverviews.map(item => this.apiService.uploadJson(item.fileName, item.overview))
+                      ...territoryOverviews.map(item => this.apiService.uploadJson(item.fileName, item.overview)),
+                      ...this.createPushNotificationRequests(territories, territoryOverviews)
                     ];
 
                     from(synchronizationRequests).pipe(
@@ -3080,6 +3087,114 @@ export class AppComponent implements OnInit, OnDestroy {
     }
 
     return hashCode.toString();
+  }
+
+  protected unsubscribeFromPushNotifications(): void {
+    this.pushNotificationService.unsubscribe().then(() => {
+      this.refreshPushSubscriptionState();
+      this.toastr.success('Benachrichtigungen wurden abbestellt.');
+    }).catch(error => {
+      console.error('Error removing push subscription:', error);
+      this.toastr.error('Das Abonnement konnte nicht beendet werden.');
+    });
+  }
+
+  protected subscribeToPushNotifications(): void {
+    if (!this.remoteOverviewId || !this.remoteOverviewName || this.isAllTerritoriesOverview) {
+      return;
+    }
+
+    this.activatePushSubscription(this.remoteOverviewId, this.remoteOverviewName);
+  }
+
+  private offerPushSubscription(overviewId: string, preacherName: string): void {
+    if (!this.pushNotificationService.shouldOfferSubscription(overviewId)) {
+      return;
+    }
+
+    const currentOverviewId = this.pushNotificationService.getSubscribedOverviewId();
+    const question = currentOverviewId
+      ? `Möchten Sie stattdessen die Gebietsübersicht von ${preacherName} abonnieren? Das bisherige Abonnement wird ersetzt.`
+      : `Möchten Sie die Gebietsübersicht von ${preacherName} abonnieren und Benachrichtigungen erhalten?`;
+
+    if (!confirm(question)) {
+      this.pushNotificationService.rememberDeclined(overviewId);
+      return;
+    }
+
+    this.activatePushSubscription(overviewId, preacherName);
+  }
+
+  private activatePushSubscription(overviewId: string, preacherName: string): void {
+    this.pushNotificationService.subscribe(overviewId, preacherName).then(() => {
+      this.refreshPushSubscriptionState();
+      this.toastr.success(`Benachrichtigungen für ${preacherName} wurden aktiviert.`);
+    }).catch(error => {
+      console.error('Error creating push subscription:', error);
+      this.toastr.error(error instanceof Error ? error.message : 'Benachrichtigungen konnten nicht aktiviert werden.');
+    });
+  }
+
+  private refreshPushSubscriptionState(): void {
+    this.isSubscribedToCurrentOverview = Boolean(
+      this.remoteOverviewId
+      && this.pushNotificationService.getSubscribedOverviewId() === this.remoteOverviewId
+    );
+  }
+
+  private createPushNotificationRequests(
+    territories: Territory[],
+    territoryOverviews: Array<{fileName: string, overview: TerritoryOverview}>
+  ) {
+    const requests: Observable<unknown>[] = [];
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+    territoryOverviews.forEach(item => {
+      territories.forEach(territory => {
+        const activeAssignment = territory.registryEntryList?.find(entry =>
+          !entry.returnDate && entry.preacher.name === item.overview.preacherName
+        );
+
+        if (!activeAssignment || !territory.uuid) {
+          return;
+        }
+
+        const assignedAt = new Date(activeAssignment.assignDate);
+
+        if (Number.isNaN(assignedAt.getTime())) {
+          return;
+        }
+
+        const assignmentIdentity = `${item.fileName}:${territory.uuid}:${assignedAt.toISOString()}`;
+        const overviewUrl = `./?id=${item.fileName}`;
+
+        if (territory.newPreacherAssigned) {
+          requests.push(this.apiService.sendPushNotification({
+            overviewId: item.fileName,
+            eventId: `assignment:${assignmentIdentity}`,
+            title: 'Ein neues Gebiet wurde zugewiesen',
+            body: `Gebiet ${territory.number} – ${territory.name} ist jetzt in Ihrer Gebietsübersicht verfügbar.`,
+            url: overviewUrl
+          }).pipe(
+            tap(() => territory.newPreacherAssigned = false),
+            concatMap(() => this.mapService.saveTerritory(territory))
+          ));
+        }
+
+        if (assignedAt <= oneYearAgo) {
+          requests.push(this.apiService.sendPushNotification({
+            overviewId: item.fileName,
+            eventId: `annual:${assignmentIdentity}`,
+            title: 'Freundliche Erinnerung zu Ihrem Gebiet',
+            body: `Sie haben Gebiet ${territory.number} bereits seit etwa einem Jahr. Vielleicht ist bald ein guter Zeitpunkt, es zurückzugeben und ein neues Gebiet zu erhalten.`,
+            url: overviewUrl
+          }));
+        }
+      });
+    });
+
+    return requests;
   }
 
   protected copyRemoteTerritoryOverviewLink(preacher: Preacher): void {

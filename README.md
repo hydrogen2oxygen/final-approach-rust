@@ -58,6 +58,8 @@ congregation/ # congregation, publisher and configuration data
 
 The saved home position and zoom level are browser/WebView-local settings. Remote publication is optional and requires a PHP-capable web server configured in the application settings.
 
+Web Push notifications for subscribed preacher overviews are described in [docs/push-notifications.md](docs/push-notifications.md).
+
 ### Updates
 
 The Tauri desktop application can check for signed updates published through GitHub Releases. New versions are available on the project's **[Releases page](https://github.com/hydrogen2oxygen/final-approach-rust/releases)**.
