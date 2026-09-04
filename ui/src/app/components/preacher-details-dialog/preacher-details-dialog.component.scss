@@ -41,8 +41,82 @@ mat-dialog-content {
   background: #FFFFFF;
 }
 
+.group-management {
+  margin-bottom: 18px;
+  padding: 14px;
+  border: 1px solid #D7E0E9;
+  border-radius: 8px;
+  background: #F7F9FB;
+}
+
+.group-management-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.group-management h3,
+.group-management p {
+  margin: 0;
+}
+
+.group-management p {
+  margin-top: 4px;
+  color: #526273;
+  font-size: 0.85rem;
+}
+
+.group-create-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.group-create-controls input,
+.group-select {
+  min-height: 34px;
+  padding: 5px 8px;
+  border: 1px solid #B9C5D1;
+  border-radius: 5px;
+  background: #FFFFFF;
+  color: #25364A;
+}
+
+.group-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.group-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px;
+  border: 1px solid #D7E0E9;
+  border-radius: 6px;
+  background: #FFFFFF;
+}
+
+.group-card div {
+  display: grid;
+  gap: 2px;
+}
+
+.group-card span {
+  color: #526273;
+  font-size: 0.78rem;
+}
+
+.group-select {
+  min-width: 150px;
+  width: 100%;
+}
+
 .table-container {
-  overflow: visible;
+  overflow: auto;
   border: 1px solid #E1E6EB;
   border-radius: 8px;
 }
@@ -142,6 +216,18 @@ th {
   text-align: center;
 }
 
+.group-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 9px;
+  border-radius: 5px;
+  background: #E8F1FA;
+  color: #14598F;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
 @media (max-width: 600px) {
   .dialog-header,
   mat-dialog-content {
@@ -152,5 +238,11 @@ th {
   th,
   td {
     padding: 8px;
+  }
+
+  .group-management-header,
+  .group-create-controls {
+    align-items: stretch;
+    flex-direction: column;
   }
 }

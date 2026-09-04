@@ -25,6 +25,13 @@ export class Congregation {
   apiSECRET: string = "";
   rootURL: string = "";
   territoryOverviewPassword: string = "";
+  serviceGroups: ServiceGroup[] = [];
+}
+
+export class ServiceGroup {
+  name: string = '';
+  overseerName: string = '';
+  assistantName: string = '';
 }
 
 export class ColorSettings {
@@ -43,7 +50,8 @@ export class Preacher {
   shortName:string | undefined;
   uuid:string = '';
   territoryListNumbers:string[] = [];
-  group:string[] = [];
+  group:boolean = false;
+  serviceGroupName:string = '';
   softdelete:boolean = false;
   harddelete:boolean = false;
   showPreacherActions:boolean = false;

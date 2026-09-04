@@ -4,12 +4,49 @@
 </div>
 
 <mat-dialog-content>
+  @if (data.canManageServiceGroups) {
+    <section class="group-management" aria-labelledby="service-groups-title">
+      <div class="group-management-header">
+        <div>
+          <h3 id="service-groups-title">Service groups</h3>
+          <p>Create groups and assign each preacher to at most one group.</p>
+        </div>
+        <div class="group-create-controls">
+          <input type="text" maxlength="80" placeholder="New group name"
+                 [(ngModel)]="newServiceGroupName" (keyup.enter)="createServiceGroup()">
+          <button class="action-button primary-button" type="button"
+                  [disabled]="!newServiceGroupName.trim()" (click)="createServiceGroup()">ADD GROUP</button>
+        </div>
+      </div>
+
+      @if (data.serviceGroups.length > 0) {
+        <div class="group-list">
+          @for (group of data.serviceGroups; track group.name) {
+            <div class="group-card">
+              <div>
+                <strong>{{ group.name }}</strong>
+                <span>Overseer: {{ group.overseerName || '—' }}</span>
+                <span>Assistant: {{ group.assistantName || '—' }}</span>
+              </div>
+              <button class="action-button delete-button" type="button"
+                      (click)="data.deleteServiceGroup(group)">DELETE</button>
+            </div>
+          }
+        </div>
+      }
+    </section>
+  }
+
   <div class="table-container">
     <table>
       <thead>
       <tr>
         <th>ACTIONS</th>
         <th>NAME</th>
+        @if (data.canManageServiceGroups) {
+          <th>GROUP</th>
+          <th>ROLE</th>
+        }
         <th>TERRITORIES</th>
         <th>LINK</th>
       </tr>
@@ -18,15 +55,39 @@
         @for (preacher of data.preachers; track preacher) {
           <tr>
             <td class="actions-cell">
-              <button class="action-button delete-button" type="button"
-                      (click)="data.deletePreacher(preacher)">DEL</button>
-              <button class="action-button switch-button" type="button"
-                      (click)="data.switchGroup(preacher)">SWITCH</button>
+              @if (!preacher.group) {
+                <button class="action-button delete-button" type="button"
+                        (click)="data.deletePreacher(preacher)">DEL</button>
+                <button class="action-button switch-button" type="button"
+                        (click)="data.switchGroup(preacher)">SWITCH</button>
+              } @else {
+                <span class="group-badge">GROUP</span>
+              }
             </td>
             <td>
               <button class="action-button primary-button preacher-button" type="button"
                       (click)="data.openTerritories(preacher)">{{ preacher.name }}</button>
             </td>
+            @if (data.canManageServiceGroups) {
+              <td>
+                <select class="group-select" [value]="getServiceGroupName(preacher)" [disabled]="preacher.group"
+                        (change)="changeServiceGroup(preacher, $event)">
+                  <option value="">No group</option>
+                  @for (group of data.serviceGroups; track group.name) {
+                    <option [value]="group.name">{{ group.name }}</option>
+                  }
+                </select>
+              </td>
+              <td>
+                <select class="group-select" [value]="data.getServiceGroupRole(preacher)"
+                        [disabled]="preacher.group || !getServiceGroupName(preacher)"
+                        (change)="changeServiceGroupRole(preacher, $event)">
+                  <option value="member">Member</option>
+                  <option value="overseer">Group overseer</option>
+                  <option value="assistant">Group overseer assistant</option>
+                </select>
+              </td>
+            }
             <td class="territory-count">{{ data.getAssignedTerritoryCount(preacher) }}</td>
             <td>
               <button class="action-button primary-button" type="button"

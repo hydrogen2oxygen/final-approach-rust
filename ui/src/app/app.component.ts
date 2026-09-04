@@ -32,6 +32,7 @@ import {
   DoNotVisit,
   Preacher,
   RegistryEntry,
+  ServiceGroup,
   Territory,
   TerritoryOverview
 } from './domains/Congregation';
@@ -58,7 +59,10 @@ import {
   TerritoryDetailsDialogComponent,
   TerritoryDetailsItem
 } from './components/territory-details-dialog/territory-details-dialog.component';
-import {PreacherDetailsDialogComponent} from './components/preacher-details-dialog/preacher-details-dialog.component';
+import {
+  PreacherDetailsDialogComponent,
+  ServiceGroupRole
+} from './components/preacher-details-dialog/preacher-details-dialog.component';
 import {DoNotVisitWarningDialogComponent} from './components/do-not-visit-warning-dialog/do-not-visit-warning-dialog.component';
 import {UpdateService} from './services/update.service';
 import {
@@ -1422,8 +1426,31 @@ export class AppComponent implements OnInit, OnDestroy {
 
         this.apiService.setCongregation(this.congregation)
 
+        this.congregation.serviceGroups = this.congregation.serviceGroups ?? [];
+        this.congregation.preacherList = this.congregation.preacherList ?? [];
+        let congregationNeedsMigration = false;
+        this.congregation.preacherList.forEach(preacher => {
+          const legacyGroupValue = (preacher as unknown as {group?: unknown}).group;
+
+          if (Array.isArray(legacyGroupValue)) {
+            preacher.serviceGroupName = typeof legacyGroupValue[0] === 'string' ? legacyGroupValue[0] : '';
+            preacher.group = false;
+            congregationNeedsMigration = true;
+          } else {
+            preacher.group = legacyGroupValue === true;
+            preacher.serviceGroupName = preacher.serviceGroupName ?? '';
+          }
+        });
+        congregationNeedsMigration = this.ensureServiceGroupPreachers() || congregationNeedsMigration;
+
+        if (congregationNeedsMigration) {
+          this.mapService.saveCongregation(this.congregation).subscribe({
+            error: error => console.error('Error migrating service groups:', error)
+          });
+        }
+
         // Sort preachers by name
-        this.congregation.preacherList = (this.congregation.preacherList ?? [])
+        this.congregation.preacherList = this.congregation.preacherList
           .sort((a, b) => (a.name > b.name ? 1 : -1));
 
         this.loadHome();
@@ -2789,7 +2816,7 @@ export class AppComponent implements OnInit, OnDestroy {
     })
 
     this.dialog.open(PreacherDetailsDialogComponent, {
-      width: '54rem',
+      width: '78rem',
       maxWidth: 'calc(100vw - 24px)',
       maxHeight: 'calc(100vh - 24px)',
       data: {
@@ -2801,7 +2828,16 @@ export class AppComponent implements OnInit, OnDestroy {
         deletePreacher: (preacher: Preacher) => this.deletePreacher(preacher),
         getAssignedTerritoryCount: (preacher: Preacher) => this.getAssignedTerritories(preacher).length,
         openTerritories: (preacher: Preacher) => this.openPreacherTerritories(preacher),
-        switchGroup: (preacher: Preacher) => this.switchGroup(preacher)
+        switchGroup: (preacher: Preacher) => this.switchGroup(preacher),
+        canManageServiceGroups: this.isLocalhost && this.persona === Personas.MANAGER && !foreignGroup,
+        serviceGroups: this.congregation.serviceGroups ?? [],
+        createServiceGroup: (name: string) => this.createServiceGroup(name),
+        deleteServiceGroup: (group: ServiceGroup) => this.deleteServiceGroup(group),
+        assignServiceGroup: (preacher: Preacher, groupName: string) =>
+          this.assignPreacherToServiceGroup(preacher, groupName),
+        assignServiceGroupRole: (preacher: Preacher, role: ServiceGroupRole) =>
+          this.assignServiceGroupRole(preacher, role),
+        getServiceGroupRole: (preacher: Preacher) => this.getServiceGroupRole(preacher)
       }
     });
   }
@@ -2881,6 +2917,11 @@ export class AppComponent implements OnInit, OnDestroy {
     }
 
     p.foreignLanguageGroup = !p.foreignLanguageGroup;
+
+    if (p.foreignLanguageGroup) {
+      p.serviceGroupName = '';
+      this.removePreacherFromLeadershipRoles(p.name);
+    }
 
     this.congregation.preacherList.forEach(p2 => {
       if (p2.name == p.name) {
@@ -3087,6 +3128,201 @@ export class AppComponent implements OnInit, OnDestroy {
     }
 
     return hashCode.toString();
+  }
+
+  private createServiceGroup(name: string): boolean {
+    const normalizedName = name.trim().replace(/\s+/g, ' ');
+
+    if (!normalizedName || normalizedName.length > 80) {
+      this.toastr.error('Please enter a valid group name.');
+      return false;
+    }
+
+    this.congregation.serviceGroups = this.congregation.serviceGroups ?? [];
+
+    if (this.congregation.serviceGroups.some(group =>
+      group.name.localeCompare(normalizedName, undefined, {sensitivity: 'accent'}) === 0
+    )) {
+      this.toastr.warning('A service group with this name already exists.');
+      return false;
+    }
+
+    if (this.congregation.preacherList.some(preacher =>
+      preacher.name.localeCompare(normalizedName, undefined, {sensitivity: 'accent'}) === 0
+    )) {
+      this.toastr.warning('A preacher or group with this name already exists.');
+      return false;
+    }
+
+    const serviceGroup = new ServiceGroup();
+    serviceGroup.name = normalizedName;
+    this.congregation.serviceGroups.push(serviceGroup);
+    this.congregation.preacherList.push(this.createServiceGroupPreacher(normalizedName));
+    this.congregation.preacherList.sort((first, second) =>
+      first.name.localeCompare(second.name, undefined, {sensitivity: 'base'})
+    );
+    this.preacherList.push(this.congregation.preacherList.find(preacher =>
+      preacher.group && preacher.name === normalizedName
+    )!);
+    this.preacherList.sort((first, second) =>
+      first.name.localeCompare(second.name, undefined, {sensitivity: 'base'})
+    );
+    this.saveServiceGroupChanges(`Service group ${normalizedName} was created.`);
+    return true;
+  }
+
+  private deleteServiceGroup(group: ServiceGroup): void {
+    const hasActiveTerritories = this.territoriesSorted.some(territory =>
+      territory.registryEntryList?.some(entry => !entry.returnDate && entry.preacher.name === group.name)
+    );
+
+    if (hasActiveTerritories) {
+      this.toastr.warning('Return all territories assigned to this group before deleting it.');
+      return;
+    }
+
+    if (!confirm(`Delete service group ${group.name}? The preachers will remain available.`)) {
+      return;
+    }
+
+    const groupIndex = this.congregation.serviceGroups.indexOf(group);
+
+    if (groupIndex < 0) {
+      return;
+    }
+
+    this.congregation.preacherList.forEach(preacher => {
+      if (preacher.serviceGroupName === group.name) {
+        preacher.serviceGroupName = '';
+      }
+    });
+    const groupPreacherIndex = this.congregation.preacherList.findIndex(preacher =>
+      preacher.group && preacher.name === group.name
+    );
+
+    if (groupPreacherIndex >= 0) {
+      const groupPreacher = this.congregation.preacherList[groupPreacherIndex];
+      this.congregation.preacherList.splice(groupPreacherIndex, 1);
+      const visibleIndex = this.preacherList.indexOf(groupPreacher);
+
+      if (visibleIndex >= 0) {
+        this.preacherList.splice(visibleIndex, 1);
+      }
+    }
+
+    this.congregation.serviceGroups.splice(groupIndex, 1);
+    this.saveServiceGroupChanges(`Service group ${group.name} was deleted.`);
+  }
+
+  private assignPreacherToServiceGroup(preacher: Preacher, groupName: string): void {
+    const selectedGroup = this.congregation.serviceGroups.find(group => group.name === groupName);
+
+    this.removePreacherFromLeadershipRoles(preacher.name);
+    preacher.serviceGroupName = selectedGroup?.name ?? '';
+    this.saveServiceGroupChanges(
+      selectedGroup
+        ? `${preacher.name} was assigned to ${selectedGroup.name}.`
+        : `${preacher.name} is no longer assigned to a service group.`
+    );
+  }
+
+  private assignServiceGroupRole(preacher: Preacher, role: ServiceGroupRole): void {
+    const groupName = preacher.serviceGroupName;
+    const serviceGroup = this.congregation.serviceGroups.find(group => group.name === groupName);
+
+    if (!serviceGroup) {
+      this.toastr.warning('Assign the preacher to a service group first.');
+      return;
+    }
+
+    this.removePreacherFromLeadershipRoles(preacher.name);
+
+    if (role === 'overseer') {
+      serviceGroup.overseerName = preacher.name;
+
+      if (serviceGroup.assistantName === preacher.name) {
+        serviceGroup.assistantName = '';
+      }
+    } else if (role === 'assistant') {
+      serviceGroup.assistantName = preacher.name;
+
+      if (serviceGroup.overseerName === preacher.name) {
+        serviceGroup.overseerName = '';
+      }
+    }
+
+    const roleName = role === 'overseer'
+      ? 'group overseer'
+      : role === 'assistant' ? 'group overseer assistant' : 'member';
+    this.saveServiceGroupChanges(`${preacher.name} is now ${roleName} of ${serviceGroup.name}.`);
+  }
+
+  private getServiceGroupRole(preacher: Preacher): ServiceGroupRole {
+    const serviceGroup = this.congregation.serviceGroups.find(group =>
+      group.name === preacher.serviceGroupName
+    );
+
+    if (serviceGroup?.overseerName === preacher.name) {
+      return 'overseer';
+    }
+
+    if (serviceGroup?.assistantName === preacher.name) {
+      return 'assistant';
+    }
+
+    return 'member';
+  }
+
+  private removePreacherFromLeadershipRoles(preacherName: string): void {
+    this.congregation.serviceGroups.forEach(group => {
+      if (group.overseerName === preacherName) {
+        group.overseerName = '';
+      }
+
+      if (group.assistantName === preacherName) {
+        group.assistantName = '';
+      }
+    });
+  }
+
+  private saveServiceGroupChanges(successMessage: string): void {
+    this.mapService.saveCongregation(this.congregation).subscribe({
+      next: () => this.toastr.success(successMessage),
+      error: error => {
+        console.error('Error saving service groups:', error);
+        this.toastr.error('The service group changes could not be saved.');
+      }
+    });
+  }
+
+  private ensureServiceGroupPreachers(): boolean {
+    let changed = false;
+
+    this.congregation.serviceGroups.forEach(group => {
+      const existingPreacher = this.congregation.preacherList.find(preacher => preacher.name === group.name);
+
+      if (existingPreacher) {
+        if (!existingPreacher.group) {
+          console.warn(`Service group ${group.name} conflicts with an existing preacher name.`);
+        }
+
+        return;
+      }
+
+      this.congregation.preacherList.push(this.createServiceGroupPreacher(group.name));
+      changed = true;
+    });
+
+    return changed;
+  }
+
+  private createServiceGroupPreacher(name: string): Preacher {
+    const preacher = new Preacher();
+    preacher.name = name;
+    preacher.uuid = crypto.randomUUID();
+    preacher.group = true;
+    preacher.serviceGroupName = '';
+    return preacher;
   }
 
   protected unsubscribeFromPushNotifications(): void {
