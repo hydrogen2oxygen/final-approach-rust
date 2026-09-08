@@ -18,6 +18,7 @@ import {Circle as CircleStyle, Fill, Stroke, Style, Text} from 'ol/style';
 import {FeatureLike} from 'ol/Feature';
 import {FormControl, FormsModule, ReactiveFormsModule} from '@angular/forms';
 import {DragAndDrop, Draw, Modify, Select} from 'ol/interaction';
+import {createBox} from 'ol/interaction/Draw';
 import {GeoJSON, GPX, IGC, KML, TopoJSON, WKT} from 'ol/format';
 import {Feature} from 'ol';
 import {ForeignLanguageCoverage, TerritoryMap, Personas} from './domains/MapDesign';
@@ -46,7 +47,7 @@ import {SettingsComponent} from './components/settings/settings.component';
 import {getCenter} from 'ol/extent';
 import {transform} from 'ol/proj';
 import {ApiService} from './services/api.service';
-import {catchError, concatMap, from, Observable, of, Subject, Subscription, tap, toArray} from 'rxjs';
+import {catchError, concatMap, defer, finalize, from, Observable, of, Subject, Subscription, tap, toArray} from 'rxjs';
 import {RemoteOverviewHistoryDialogComponent} from './components/remote-overview-history-dialog/remote-overview-history-dialog.component';
 import {
   RemoteOverviewHistoryEntry,
@@ -72,6 +73,7 @@ import {
 } from './components/remote-overview-access-dialog/remote-overview-access-dialog.component';
 import {PushNotificationService} from './services/push-notification.service';
 import {FileExportService} from './services/file-export.service';
+import {OsmBlockService} from './services/osm-block.service';
 
 interface SearchResult {
   label: string;
@@ -110,6 +112,16 @@ export class AppComponent implements OnInit, OnDestroy {
   addAsForeignLanguageTerritory = new FormControl(false);
   territoryImportRootUrl = new FormControl('', {nonNullable: true});
   importingTerritories: boolean = false;
+  loadingOsmBlocks: boolean = false;
+  private osmBlockSubscription: Subscription | undefined;
+  private readonly osmSelectionSource = new VectorSource<Feature<Polygon>>();
+  private readonly osmSelectionLayer = new VectorLayer({
+    source: this.osmSelectionSource,
+    style: new Style({
+      stroke: new Stroke({color: '#1976d2', width: 2, lineDash: [8, 6]}),
+      fill: new Fill({color: 'rgba(25, 118, 210, 0.08)'})
+    })
+  });
   editingReturnDate: RegistryEntry | null = null;
 
   congregation: Congregation | undefined;
@@ -183,7 +195,8 @@ export class AppComponent implements OnInit, OnDestroy {
     private remoteOverviewHistoryService: RemoteOverviewHistoryService,
     private updateService: UpdateService,
     private pushNotificationService: PushNotificationService,
-    private fileExportService: FileExportService
+    private fileExportService: FileExportService,
+    private osmBlockService: OsmBlockService
   ) {
   }
 
@@ -223,7 +236,8 @@ export class AppComponent implements OnInit, OnDestroy {
       controls: [],
       layers: [
         this.osmLayer,
-        this.vectorLayer
+        this.vectorLayer,
+        this.osmSelectionLayer
       ],
       view: this.view
     });
@@ -419,6 +433,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.osmBlockSubscription?.unsubscribe();
     this.geolocation?.setTracking(false);
     this.serviceGroupSaveSubscription?.unsubscribe();
   }
@@ -851,6 +866,76 @@ export class AppComponent implements OnInit, OnDestroy {
     this.modeSelected = 'polygon';
   }
 
+  drawOsmBlocks(): void {
+    if (this.persona !== Personas.DESIGNER || !this.isLocalhost || this.loadingOsmBlocks) {
+      return;
+    }
+    this.removeInteraction();
+    this.interactionType = 'OSM_BLOCKS';
+    const draw = new Draw({type: 'Circle', geometryFunction: createBox()});
+    this.interaction = draw;
+    draw.on('drawend', event => {
+      const selection = event.feature as Feature<Polygon>;
+      const extent = selection.getGeometry().getExtent().slice();
+      this.removeInteraction();
+      this.osmSelectionSource.addFeature(selection);
+      this.loadingOsmBlocks = true;
+      this.osmBlockSubscription = defer(() => this.osmBlockService.loadBlocks(extent)).pipe(
+        finalize(() => {
+          this.loadingOsmBlocks = false;
+          this.osmSelectionSource.clear();
+        })
+      ).subscribe({
+        next: polygons => {
+          if (this.persona !== Personas.DESIGNER || !this.isLocalhost) {
+            return;
+          }
+          const existing = new Set(this.source.getFeatures().map(feature => {
+            const geometry = feature.getGeometry();
+            return geometry instanceof Polygon ? this.osmGeometryKey(geometry) : '';
+          }));
+          const numbers = new Set(this.source.getFeatures().map(feature => String(feature.get('territoryNumber'))));
+          let nextNumber = Date.now();
+          const features = polygons.filter(polygon => !existing.has(this.osmGeometryKey(polygon)))
+            .map(polygon => {
+              while (numbers.has(String(nextNumber))) {
+                nextNumber++;
+              }
+              return new Feature({
+                geometry: polygon,
+                draft: true,
+                territoryNumber: String(nextNumber++),
+                territoryName: 'DRAFT',
+                additionalNote: '',
+                note: 'Generated from © OpenStreetMap contributors (ODbL). Please review street boundaries.'
+              });
+            });
+          this.source.addFeatures(features);
+          if (features.length > 0) {
+            this.modifiedFeatures = true;
+            this.lastSelectedFeature = features[features.length - 1];
+            this.toastr.success(`${features.length} OSM blocks created as drafts. Review, edit and save with CTRL + S.`);
+          } else {
+            this.toastr.info('No new enclosed blocks with buildings found. Select a larger rectangle around complete street blocks (maximum 4 km²).');
+          }
+        },
+        error: error => {
+          console.error('Could not generate OSM blocks:', error);
+          this.toastr.error(error instanceof Error && error.name === 'Error'
+            ? error.message : 'OSM data could not be loaded. Check your connection or retry with a smaller area.');
+        }
+      });
+    });
+    this.map?.addInteraction(draw);
+    this.toastr.info('Click two opposite corners to select street blocks (maximum 4 km²). ESC cancels.');
+  }
+
+  private osmGeometryKey(polygon: Polygon): string {
+    // Independent of ring direction and start vertex, including after WKT reload.
+    return polygon.getCoordinates().map(ring => ring.slice(0, -1)
+      .map(point => `${point[0].toFixed(2)},${point[1].toFixed(2)}`).sort().join(';')).sort().join('|');
+  }
+
   editFeature() {
 
     if (this.interaction != null) {
@@ -901,6 +986,8 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   removeInteraction() {
+    this.osmBlockSubscription?.unsubscribe();
+    this.osmSelectionSource.clear();
     this.map?.removeInteraction(this.interaction);
     this.interaction = null;
     this.interactionType = undefined

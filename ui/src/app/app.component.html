@@ -120,7 +120,16 @@
         </div>
       }
 
-      @if (interaction) {
+      @if (isLocalhost) {
+        <button class="icon-button icon-primary" [class.activeMode]="interactionType === 'OSM_BLOCKS'"
+                [disabled]="loadingOsmBlocks" (click)="drawOsmBlocks()"
+                title="Select a rectangle and generate street blocks from OpenStreetMap (internet required)"
+                aria-label="Generate street blocks from OpenStreetMap">
+          <mat-icon>{{ loadingOsmBlocks ? 'hourglass_top' : 'grid_on' }}</mat-icon>
+          <b>{{ loadingOsmBlocks ? 'Loading OSM…' : 'OSM blocks' }}</b>
+        </button>
+      }
+      @if (interaction || loadingOsmBlocks) {
         <button class="icon-button icon-primary" (click)="removeInteraction()" title="Stop Editing (ESC)">
           <mat-icon>stop_circle</mat-icon>
           <b>ESC</b>
